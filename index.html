@@ -51,7 +51,6 @@
         .input-field:focus { border-color: #2563eb; outline: none; ring: 2px solid #bfdbfe; }
         .input-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 4px 0; border-bottom: 1px dashed #f1f5f9; }
         
-        /* Updated HR Table Styles for smaller text */
         .hr-table th { text-align: left; font-size: 0.7rem; color: #64748b; padding-bottom: 4px; }
         .hr-table td { padding: 2px 1px; vertical-align: middle; font-size: 0.7rem; }
         .hr-input { width: 100%; border: 1px solid #e2e8f0; border-radius: 4px; padding: 1px 2px; font-size: 0.7rem; text-align: right; height: 24px; }
@@ -66,7 +65,7 @@
         .matrix-table th, .matrix-table td { border: 1px solid #e2e8f0; padding: 6px; text-align: center; font-size: 0.75rem; }
         .matrix-header { background: #f1f5f9; font-weight: 600; color: #475569; }
 
-        /* Custom Scrollbar for tables */
+        /* Custom Scrollbar */
         .custom-scroll::-webkit-scrollbar { height: 8px; }
         .custom-scroll::-webkit-scrollbar-track { background: #f1f5f9; }
         .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
@@ -108,7 +107,7 @@
             capex: { factory: 7000000, machine: 1300000, license: 200000, stock: 1000000 },
             depreciation: { factoryYears: 20, machineYears: 10 }, 
             targetBags: 20000, price: 389,
-            creditTerm: 0, // NEW: Days (0, 20, 30, 60)
+            creditTerm: 0, 
             yield: 60, paddyPrice: 12000,
             byProducts: [
                 { name: "แกลบ", percent: 23, price: 1500 },
@@ -126,26 +125,28 @@
                 { role: "Sales/Marketing", count: 2, salary: 17775 }
             ],
             varParams: { elecRate: 600, mktPercent: 14, platformPercent: 12 },
-            fixedParams: { erp: 9000, campaign: 41000, other: 10000, maintPercent: 2 }, // Added maintenance %
+            fixedParams: { erp: 9000, campaign: 41000, other: 10000, maintPercent: 2 },
             logistics: { active: true, percent: 50, profit: 5 },
             dividend: { payout: 50, founders: 3 },
             growth: 10, inflation: 3, monthlyGrowth: 0, discountRate: 10,
+            // New Funnel Assumptions
+            mktFunnel: { basketSize: 1.0, cvr: 2.0, ctr: 1.5 },
             scenario: 'base', taxPaymentMode: 'annual'
         };
 
         const App = () => {
             const [d, setD] = useState(() => {
                 try {
-                    const savedData = localStorage.getItem('morbSukFinancialData_v38'); // Version updated
+                    const savedData = localStorage.getItem('morbSukFinancialData_v42'); // Version Updated
                     return savedData ? JSON.parse(savedData) : INITIAL;
                 } catch (e) { return INITIAL; }
             });
             const [c, setC] = useState(null); 
 
-            useEffect(() => { localStorage.setItem('morbSukFinancialData_v38', JSON.stringify(d)); }, [d]);
+            useEffect(() => { localStorage.setItem('morbSukFinancialData_v42', JSON.stringify(d)); }, [d]);
 
             const resetToDefault = () => {
-                if (confirm("Reset all data to default?")) { setD(INITIAL); localStorage.removeItem('morbSukFinancialData_v38'); }
+                if (confirm("Reset all data to default?")) { setD(INITIAL); localStorage.removeItem('morbSukFinancialData_v42'); }
             };
 
             const handlePrint = () => window.print();
@@ -182,6 +183,7 @@
             const upArr = (k, i, f, v) => {
                 const n = [...d[k]]; n[i][f] = f==='name'||f==='role'?v:+v; setD(p=>({...p, [k]: n}));
             };
+            const upFunnel = (k, v) => setD(p => ({...p, mktFunnel: {...p.mktFunnel, [k]: +v}}));
 
             const handleYieldChange = (e) => {
                 const newYield = parseFloat(e.target.value);
@@ -205,7 +207,7 @@
                 const workingCap = totalSources - totalCapex;
                 const annualDepreciation = (data.capex.factory / data.depreciation.factoryYears) + (data.capex.machine / data.depreciation.machineYears);
 
-                // Maintenance Cost (Pro feature)
+                // Maintenance
                 const maintenanceCostYearly = data.capex.machine * ((data.fixedParams.maintPercent || 2) / 100);
                 const maintenanceCostMonthly = maintenanceCostYearly / 12;
 
@@ -230,13 +232,16 @@
                 const totalVatOut = baseRev - (baseRev / 1.07);
 
                 // Expenses
-                const riceTotal = paddyBudget; // Exempt
-                const packTotal = (data.unit.bag + data.unit.sticker) * data.targetBags; // Vatable
-                const elecTotal = data.varParams.elecRate * paddyTons; // Vatable
-                const platformTotal = riceRev * (data.varParams.platformPercent/100); // Vatable
-                const mktTotal = riceRev * (data.varParams.mktPercent/100); // Vatable
+                const riceTotal = paddyBudget; 
+                const packTotal = (data.unit.bag + data.unit.sticker) * data.targetBags; 
+                const elecTotal = data.varParams.elecRate * paddyTons; 
+                const platformTotal = riceRev * (data.varParams.platformPercent/100); 
+                const mktTotal = riceRev * (data.varParams.mktPercent/100); 
                 
-                // Human Resources with SSO
+                // Marketing Budget Total (Variable + Fixed Campaign)
+                const totalMarketingBudget = mktTotal + data.fixedParams.campaign;
+
+                // HR & SSO
                 let baseSalaryTotal = 0;
                 let ssoTotal = 0;
                 const hrCosts = data.hr.map(h => {
@@ -250,7 +255,8 @@
                 const salaryTotal = baseSalaryTotal + ssoTotal; 
                 const fixedCashTotal = salaryTotal + data.fixedParams.erp + data.fixedParams.campaign + data.fixedParams.other + maintenanceCostMonthly; 
 
-                const vatableExpenses = packTotal + elecTotal + platformTotal + mktTotal + data.fixedParams.erp + data.fixedParams.campaign + data.fixedParams.other + maintenanceCostMonthly;
+                // Input VAT Calculation (Modified: Only specific items as requested)
+                const vatableExpenses = packTotal + elecTotal + platformTotal + mktTotal;
                 const totalVatIn = vatableExpenses - (vatableExpenses / 1.07);
                 
                 const totalVar = riceTotal + packTotal + elecTotal + platformTotal + mktTotal; 
@@ -259,14 +265,36 @@
                 const riceCostUnit = (5 / (data.yield/100)) * (data.paddyPrice/1000);
                 const matCostUnit = riceCostUnit + data.unit.bag + data.unit.sticker;
 
-                // Pre-calculate accrued revenue for 24 months (to handle lag overlap for projection)
+                // --- Marketing Funnel Calculation ---
+                // Assumptions
+                const basketSize = data.mktFunnel?.basketSize || 1;
+                const cvr = data.mktFunnel?.cvr || 2.0;
+                const ctr = data.mktFunnel?.ctr || 1.5;
+
+                const totalOrders = data.targetBags / basketSize;
+                const cpa = totalMarketingBudget / totalOrders; // Cost Per Acquisition (Order)
+                const visitorsNeeded = totalOrders / (cvr / 100);
+                const impressionsNeeded = visitorsNeeded / (ctr / 100);
+                const impliedCPC = totalMarketingBudget / visitorsNeeded;
+                const impliedCPM = (totalMarketingBudget / impressionsNeeded) * 1000;
+
+                const funnelMetrics = {
+                    budget: totalMarketingBudget,
+                    orders: totalOrders,
+                    cpa: cpa,
+                    visitors: visitorsNeeded,
+                    cpc: impliedCPC,
+                    impressions: impressionsNeeded,
+                    cpm: impliedCPM
+                };
+
+                // Pre-calculate accrued revenue
                 const accruedRev = [];
                 for(let k=1; k<=24; k++) {
                    const growthFactor = Math.pow(1 + data.monthlyGrowth/100, k - 1);
                    accruedRev.push(baseRev * growthFactor);
                 }
-                // Add dummy 0 at index 0 for 1-based index access convenience if needed, but array is 0-based.
-                const dailyRevs = [0, ...accruedRev].map(r => r/30); // Index 1 = Month 1 daily rev
+                const dailyRevs = [0, ...accruedRev].map(r => r/30); 
 
                 // Cashflow Loop
                 const cf = [];
@@ -274,23 +302,15 @@
                 let annualOperatingCashProfit = 0; 
                 let annualFinanceCost = 0; 
                 let annualPrincipalPaid = 0;
+                let lowestCashBalance = workingCap; 
 
-                // Loan Logic (Effective Rate - Declining Balance Simulation)
                 let remainingLoanPrincipal = data.loan.amount;
-                const monthlyPrincipalPayment = data.loan.amount > 0 ? data.loan.amount / (data.loan.term * 12) : 0; // Simplified equal principal
+                const monthlyPrincipalPayment = data.loan.amount > 0 ? data.loan.amount / (data.loan.term * 12) : 0; 
 
                 const creditTermDays = parseInt(data.creditTerm || 0);
 
                 for(let i=1; i<=12; i++) {
-                    const mRev = accruedRev[i-1]; // Accrued Revenue (Sales)
-                    
-                    // --- Precise Daily Sales Credit Term Logic ---
-                    // Cash received in Month 'i' (Days (i-1)*30+1 to i*30)
-                    // comes from sales made 'creditTermDays' ago.
-                    // Sales Day 'd' (global day count 1..360+) brings cash on Day 'd + term'.
-                    // We need to sum daily revenue for all sales days 'd' where (d + term) falls in current month i.
-                    // (d + term) >= currentMonthStartDay  AND  (d + term) <= currentMonthEndDay
-                    // So d >= currentMonthStartDay - term  AND  d <= currentMonthEndDay - term
+                    const mRev = accruedRev[i-1]; 
                     
                     let cashInflow = 0;
                     const currentMonthStartCashDay = (i-1)*30 + 1;
@@ -299,54 +319,37 @@
                     const startSalesDay = currentMonthStartCashDay - creditTermDays;
                     const endSalesDay = currentMonthEndCashDay - creditTermDays;
 
-                    // Iterate through the sales days range that contributes to this month's cash
-                    // Sales days can be <= 0 (pre-operation, no sales) or > 0.
-                    
-                    // Optimization: We can calculate overlap with Month 1, Month 2, etc. instead of looping days.
-                    // But looping ~30 days is cheap.
-                    
-                    // Simpler logic:
-                    // Overlap with Month M (Sales Days (M-1)*30+1 to M*30):
-                    // Range [startSalesDay, endSalesDay] intersects with [(M-1)*30+1, M*30]
-                    
-                    // Max lookback month is limited. If term is 60, we look back ~2-3 months.
                     const maxLookBack = Math.ceil(creditTermDays/30) + 1;
                     const startSourceM = Math.max(1, i - maxLookBack);
                     
                     for(let srcM = startSourceM; srcM <= i; srcM++) {
                         const mStart = (srcM-1)*30 + 1;
                         const mEnd = srcM*30;
-                        
                         const overlapStart = Math.max(startSalesDay, mStart);
                         const overlapEnd = Math.min(endSalesDay, mEnd);
-                        
                         if (overlapEnd >= overlapStart) {
                             const daysCount = overlapEnd - overlapStart + 1;
-                            cashInflow += daysCount * dailyRevs[srcM]; // dailyRevs index 1 is Month 1
+                            cashInflow += daysCount * dailyRevs[srcM]; 
                         }
                     }
-                    // ----------------------------------------------------
 
                     const growthFactor = Math.pow(1 + data.monthlyGrowth/100, i - 1);
                     const mRice = riceTotal * growthFactor;
                     const mVatableVar = (packTotal + elecTotal + platformTotal + mktTotal) * growthFactor;
                     const mSalary = salaryTotal;
                     const mVatableFixed = (data.fixedParams.erp + data.fixedParams.campaign + data.fixedParams.other + maintenanceCostMonthly);
-                    const mExpCash = mRice + mVatableVar + mSalary + mVatableFixed; // Accrued Expense (Assuming cash payment for expenses)
+                    const mExpCash = mRice + mVatableVar + mSalary + mVatableFixed; 
                     
                     // VAT Flow
                     const mOutVat = totalVatOut * growthFactor;
-                    const mInVatFixed = (data.fixedParams.erp+data.fixedParams.campaign+data.fixedParams.other+maintenanceCostMonthly) - (data.fixedParams.erp+data.fixedParams.campaign+data.fixedParams.other+maintenanceCostMonthly)/1.07;
-                    const mInVatVar = totalVatIn - mInVatFixed;
-                    const mInVatTotal = (mInVatVar * growthFactor) + mInVatFixed;
+                    const mInVatTotal = totalVatIn * growthFactor;
                     const mVatSettlement = mOutVat - mInVatTotal;
                     
-                    // Effective Interest Calculation
+                    // Effective Interest
                     const interestThisMonth = remainingLoanPrincipal * (data.loan.rate / 100 / 12);
                     const principalThisMonth = remainingLoanPrincipal > 0 ? monthlyPrincipalPayment : 0;
                     remainingLoanPrincipal -= principalThisMonth;
 
-                    // Cashflow Calculation
                     const mNetOpProfit = (mRev - mOutVat) - (mExpCash - mInVatTotal); 
 
                     annualOperatingCashProfit += mNetOpProfit;
@@ -354,16 +357,15 @@
                     annualPrincipalPaid += principalThisMonth;
 
                     const startOfMonthCash = runningCash;
-                    
-                    // Cash Movement = Cash In (Collection) - Cash Out (Exp) - VAT Paid - Debt
                     const netCashMovement = cashInflow - mExpCash - mVatSettlement - interestThisMonth - principalThisMonth;
                     
                     runningCash += netCashMovement;
+                    if(runningCash < lowestCashBalance) lowestCashBalance = runningCash;
 
                     cf.push({ 
                         m: i, 
-                        rev: mRev, // For P&L (Accrual)
-                        revCashIn: cashInflow, // Actual Cash
+                        rev: mRev, 
+                        revCashIn: cashInflow, 
                         expCash: mExpCash, 
                         netOpCash: mNetOpProfit, 
                         interest: interestThisMonth, 
@@ -371,27 +373,27 @@
                         cashStart: startOfMonthCash, 
                         cashPreTax: runningCash, 
                         vatPaid: mVatSettlement,
-                        cashFinal: runningCash // Will deduct tax later
+                        cashFinal: runningCash 
                     });
                 }
+
+                // Tax Helper
+                const calcTax = (profit) => {
+                    if(profit <= 300000) return 0;
+                    let tax = 0;
+                    if(profit > 300000) tax += Math.min(profit - 300000, 2700000) * 0.15;
+                    if(profit > 3000000) tax += (profit - 3000000) * 0.20;
+                    return tax;
+                };
 
                 // Tax Calc
                 const taxableIncome = annualOperatingCashProfit - annualDepreciation - annualFinanceCost;
                 let taxDetails = [];
-                let totalTaxEst = 0;
-                if (taxableIncome > 0) { // Only calc if profit
-                    if (taxableIncome > 300000) {
-                        const taxable = Math.min(taxableIncome - 300000, 2700000);
-                        const tax = taxable * 0.15;
-                        totalTaxEst += tax;
-                        taxDetails.push({ tier: "300k-3M", rate: 15, amount: tax });
-                    }
-                    if (taxableIncome > 3000000) {
-                        const taxable = taxableIncome - 3000000;
-                        const tax = taxable * 0.20;
-                        totalTaxEst += tax;
-                        taxDetails.push({ tier: "> 3M", rate: 20, amount: tax });
-                    }
+                let totalTaxEst = calcTax(taxableIncome);
+                
+                if (taxableIncome > 0) {
+                    if (taxableIncome > 300000) taxDetails.push({ tier: "300k-3M", rate: 15, amount: Math.min(taxableIncome - 300000, 2700000) * 0.15 });
+                    if (taxableIncome > 3000000) taxDetails.push({ tier: "> 3M", rate: 20, amount: (taxableIncome - 3000000) * 0.20 });
                 }
                 
                 const monthlyTaxAvg = totalTaxEst / 12;
@@ -404,12 +406,14 @@
                     if (data.taxPaymentMode === 'annual') { if (index === 11) finalCumulativeCash -= totalTaxEst; } 
                     else if (data.taxPaymentMode === 'monthly') { finalCumulativeCash -= (monthlyTaxAvg * (index + 1)); }
                     
+                    if(finalCumulativeCash < lowestCashBalance) lowestCashBalance = finalCumulativeCash; 
+
                     return { ...item, tax: mTax, cashFinal: finalCumulativeCash };
                 });
 
                 const cfTotal = cfFinal.reduce((acc, cur) => ({
                     rev: acc.rev + cur.rev, 
-                    revCashIn: (acc.revCashIn || 0) + cur.revCashIn, // Added sum for Cash In
+                    revCashIn: (acc.revCashIn || 0) + cur.revCashIn,
                     expCash: acc.expCash + cur.expCash, netOpCash: acc.netOpCash + cur.netOpCash, 
                     tax: acc.tax + cur.tax, interest: acc.interest + cur.interest, principal: acc.principal + cur.principal, 
                     vatPaid: acc.vatPaid + cur.vatPaid
@@ -422,7 +426,7 @@
                 const dividendPerPersonMonth = dividendPerPersonYear / 12;
                 const roi = totalSources > 0 ? (annualNetProfitAfterAll / totalSources) * 100 : 0;
                 
-                // BEP Calc
+                // BEP Calc & Data
                 const vcTotal = totalVar; 
                 const revenueTotal = baseRev;
                 const fcTotal = fixedCashTotal;
@@ -431,11 +435,8 @@
                 const cmPerBag = revPerBag - vcPerBag; 
                 const bepUnits = cmPerBag > 0 ? fcTotal / cmPerBag : 0;
                 const bepSales = bepUnits * revPerBag;
-
-                // BEP Data
                 const bepData = [];
-                const steps = [0, 0.5, 1.0, 1.5]; 
-                steps.forEach(s => {
+                [0, 0.5, 1.0, 1.5].forEach(s => {
                     const units = data.targetBags * s;
                     bepData.push({ units: units, revenue: units * revPerBag, totalCost: fcTotal + (units * vcPerBag), fixedCost: fcTotal });
                 });
@@ -487,6 +488,8 @@
                     section7Total, elecTotal, platformTotal, mktTotal,
                     dividendPerPersonYear, dividendPerPersonMonth,
                     annualFinanceCost, annualPrincipalPaid,
+                    lowestCashBalance, 
+                    funnelMetrics, // New export
                     yrProj: null 
                 };
             };
@@ -523,32 +526,51 @@
                 const y1ExpCash = c.cfTotal.expCash + y1TaxPaid + c.cfTotal.interest + c.cfTotal.principal;
                 yCash -= c.dividendTotal;
                 
-                // Year 1 Accumulated Loss Check
+                // Tax Shield Setup (Precise Audit)
                 let accumulatedLoss = 0;
                 if (c.annualProfitEst < 0) accumulatedLoss = Math.abs(c.annualProfitEst);
 
                 yrProj.push({ y: 1, rev: c.cfTotal.rev, exp: y1ExpCash, ebitda: c.ebitda, dep: c.annualDepreciation, tax: c.annualTax, net: c.netProfit, div: c.dividendTotal, cash: yCash, taxSaving: 0 });
 
                 let prevRev = c.cfTotal.rev;
-                let prevTotalExpExclTax = c.cfTotal.expCash;
+                
+                const totalExpY1 = c.cfTotal.expCash;
+                const fixedComponentY1 = c.salaryTotal + (c.section7Total - c.elecTotal - c.platformTotal - c.mktTotal); 
+                const varComponentY1 = totalExpY1 - fixedComponentY1;
+
+                let prevVar = varComponentY1;
+                let prevFixed = fixedComponentY1;
+
                 let prevTaxLiability = d.taxPaymentMode === 'deferred' ? c.annualTax : 0;
                 let remainingLoan = d.loan.amount - c.annualPrincipalPaid;
 
                 let npv = -c.totalSources; 
                 const discountRate = (d.discountRate || 10) / 100;
 
+                // Helper for Tax Shield Calc
+                const calcTax = (profit) => {
+                    if(profit <= 300000) return 0;
+                    let tax = 0;
+                    if(profit > 300000) tax += Math.min(profit - 300000, 2700000) * 0.15;
+                    if(profit > 3000000) tax += (profit - 3000000) * 0.20;
+                    return tax;
+                };
+
                 for(let y=2;y<=5;y++) {
                     const growthRate = d.growth / 100;
                     const inflationRate = d.inflation / 100;
                     
                     const yRev = prevRev * (1 + growthRate);
-                    const yExpExclTax = prevTotalExpExclTax * (1 + growthRate) * (1 + inflationRate);
                     
+                    // NEW: Split Growth Logic
+                    const yVar = prevVar * (1 + growthRate); 
+                    const yFixed = prevFixed * (1 + inflationRate); 
+                    const yExpExclTax = yVar + yFixed;
+
                     const yGrossMargin = yRev - yExpExclTax;
                     const yVatLiability = yGrossMargin * (7/107);
                     const yEbitda = yGrossMargin - yVatLiability; 
 
-                    // Interest on declining balance (Estimate: Principal drops linearly)
                     const annualPrincipal = c.annualPrincipalPaid;
                     remainingLoan = Math.max(0, remainingLoan - annualPrincipal);
                     const yInterest = remainingLoan * (d.loan.rate / 100); 
@@ -556,23 +578,24 @@
                     
                     const yTaxable = yEbitda - c.annualDepreciation - yInterest;
                     
-                    // Tax Shield Logic (Loss Carry Forward)
+                    // --- Precise Tax Shield Logic ---
                     let taxableAfterShield = yTaxable;
-                    let taxSaving = 0;
+                    let usedLoss = 0;
+                    
                     if (yTaxable > 0 && accumulatedLoss > 0) {
-                        const usedLoss = Math.min(yTaxable, accumulatedLoss);
+                        usedLoss = Math.min(yTaxable, accumulatedLoss);
                         taxableAfterShield = yTaxable - usedLoss;
                         accumulatedLoss -= usedLoss;
-                        // Calculate saving approx 15-20%
-                        taxSaving = usedLoss * 0.15; // Simplified rate
                     } else if (yTaxable < 0) {
                         accumulatedLoss += Math.abs(yTaxable);
                         taxableAfterShield = 0;
                     }
 
-                    let yTax = 0;
-                    if (taxableAfterShield > 300000) yTax += Math.min(taxableAfterShield - 300000, 2700000) * 0.15;
-                    if (taxableAfterShield > 3000000) yTax += (taxableAfterShield - 3000000) * 0.20;
+                    // Calculate real saving
+                    const taxNormal = calcTax(yTaxable > 0 ? yTaxable : 0);
+                    const taxShielded = calcTax(taxableAfterShield);
+                    const taxSaving = taxNormal - taxShielded;
+                    const yTax = taxShielded;
 
                     let taxPaidThisYear = d.taxPaymentMode === 'deferred' ? prevTaxLiability : yTax;
                     if (d.taxPaymentMode === 'deferred') prevTaxLiability = yTax;
@@ -584,7 +607,8 @@
                     
                     yrProj.push({ y, rev: yRev, exp: yExpExclTax + taxPaidThisYear + yInterest + yPrincipal, ebitda: yEbitda, dep: c.annualDepreciation, tax: yTax, net: yNetAcc, div: yDiv, cash: yCash, taxSaving });
                     prevRev = yRev;
-                    prevTotalExpExclTax = yExpExclTax;
+                    prevVar = yVar;
+                    prevFixed = yFixed;
                 }
                 
                 yrProj.forEach((yr) => {
@@ -747,7 +771,7 @@
                                 <div className="card-header bg-blue-50"><div className="card-title text-blue-800">ประมาณการขอคืนภาษีซื้อ (VAT Refund Est.)</div></div>
                                 <div className="card-body p-3 text-xs">
                                     <div className="flex justify-between mb-1 text-slate-500"><span>ฐานค่าใช้จ่าย (Vatable Expenses)</span><span>{fmt(c.vatBreakdown.vatableExp)}</span></div>
-                                    <div className="text-[10px] text-slate-400 pl-2 mb-2">- ค่าถุง, กล่องจัดส่ง, ค่าไฟ, Platform, Ads, และค่าใช้จ่ายคงที่อื่นๆ</div>
+                                    <div className="text-[10px] text-slate-400 pl-2 mb-2">- ค่าถุง, กล่องจัดส่ง, ค่าไฟ, Platform, Ads เท่านั้น</div>
                                     <div className="flex justify-between border-t border-dashed pt-2">
                                         <span>Output VAT (ขาย)</span>
                                         <span className="text-red-500 font-bold">{fmt(c.vatBreakdown.outputVat)}</span>
@@ -860,12 +884,67 @@
                                     </table>
                                 </div>
                             </div>
+
+                            {/* Marketing Funnel & Budget Allocation */}
+                            <div className="card mt-4 border-indigo-200">
+                                <div className="card-header bg-indigo-50"><div className="card-title text-indigo-800">Marketing Funnel & Budget</div></div>
+                                <div className="card-body p-3">
+                                    <div className="flex justify-between items-end mb-2 border-b pb-2">
+                                        <div className="text-xs text-slate-500">งบการตลาดรวม (Total Budget)</div>
+                                        <div className="text-lg font-bold text-indigo-700">{fmt(c.funnelMetrics.budget)}</div>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-4 mb-3">
+                                        <div>
+                                            <div className="text-[10px] text-slate-400 uppercase font-bold">Cost Per Order (CPA)</div>
+                                            <div className="text-xl font-bold text-pink-600">{fmt(c.funnelMetrics.cpa)} ฿</div>
+                                            <div className="text-[9px] text-slate-400">ต้นทุนโฆษณาต่อ 1 ออเดอร์</div>
+                                        </div>
+                                        <div>
+                                            <div className="text-[10px] text-slate-400 uppercase font-bold">Max CPC (Bid)</div>
+                                            <div className="text-xl font-bold text-blue-600">{c.funnelMetrics.cpc.toFixed(2)} ฿</div>
+                                            <div className="text-[9px] text-slate-400">ราคาคลิกสูงสุดที่รับได้</div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="bg-slate-50 rounded p-2 border border-slate-200 space-y-2">
+                                        <div className="text-xs font-bold text-slate-700 mb-1 border-b pb-1">Funnel Simulation Inputs</div>
+                                        <div className="flex justify-between items-center text-xs">
+                                            <span>Basket Size (ถุง/ออเดอร์)</span>
+                                            <input type="number" className="w-16 border rounded text-right px-1" step="0.1" value={d.mktFunnel.basketSize} onChange={e=>upFunnel('basketSize', e.target.value)} />
+                                        </div>
+                                        <div className="flex justify-between items-center text-xs">
+                                            <span>Conversion Rate (%)</span>
+                                            <input type="number" className="w-16 border rounded text-right px-1" step="0.1" value={d.mktFunnel.cvr} onChange={e=>upFunnel('cvr', e.target.value)} />
+                                        </div>
+                                        <div className="flex justify-between items-center text-xs">
+                                            <span>CTR (%)</span>
+                                            <input type="number" className="w-16 border rounded text-right px-1" step="0.1" value={d.mktFunnel.ctr} onChange={e=>upFunnel('ctr', e.target.value)} />
+                                        </div>
+                                    </div>
+
+                                    <div className="mt-3 space-y-1">
+                                        <div className="flex justify-between text-xs">
+                                            <span className="text-slate-500">1. Impressions Needed</span>
+                                            <span className="font-medium">{fmt(c.funnelMetrics.impressions)}</span>
+                                        </div>
+                                        <div className="flex justify-between text-xs">
+                                            <span className="text-slate-500">2. Clicks (Traffic)</span>
+                                            <span className="font-medium">{fmt(c.funnelMetrics.visitors)}</span>
+                                        </div>
+                                        <div className="flex justify-between text-xs font-bold text-indigo-700 bg-indigo-50 p-1 rounded">
+                                            <span>3. Orders (Target)</span>
+                                            <span>{fmt(c.funnelMetrics.orders)}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
                         </div>
 
                         {/* --- BOTTOM --- */}
                         <div className="lg:col-span-12 space-y-6">
                              <div className="card">
-                                <div className="card-header"><div className="card-title text-slate-700">Detailed Monthly Cashflow (Year 1)</div><div className="flex items-center gap-2 text-xs"><span className="text-slate-500">Monthly Growth:</span><input type="number" className="border border-slate-300 rounded px-2 py-1 w-16 text-right" value={d.monthlyGrowth} onChange={e=>up('monthlyGrowth', null, e.target.value)} /><span className="text-slate-500">%</span></div></div>
+                                <div className="card-header"><div className="card-title text-slate-700">Detailed Monthly Cashflow (Year 1)</div><div className="flex items-center gap-2 text-xs"><span className="text-slate-500">Monthly Growth:</span><input type="number" className="border border-slate-300 rounded px-2 py-1 w-16 text-right" value={d.monthlyGrowth} onChange={e=>up('monthlyGrowth', null, e.target.value)} /><span className="text-slate-500">%</span><span className="ml-2 text-slate-400 font-bold bg-slate-100 px-2 py-1 rounded">Credit: {d.creditTerm} Days</span></div></div>
                                 <div className="overflow-x-auto custom-scroll">
                                     <table className="w-full text-xs text-right border-collapse min-w-[800px]">
                                         <thead className="bg-slate-100 text-slate-600"><tr><th className="p-3 text-center">Month</th><th className="p-3 text-slate-400">Sales (Booking)</th><th className="p-3 text-blue-700 font-bold">Cash Inflow (Actual)</th><th className="p-3 text-red-500">Expenses (Cash)</th><th className="p-3 text-orange-500">Net VAT Paid</th><th className="p-3 text-blue-600">Op. Cash (EBITDA)</th><th className="p-3 font-bold text-green-700 bg-green-50">Cash Balance</th></tr></thead>
@@ -877,7 +956,7 @@
                                     </table>
                                     <div className="mt-4 grid grid-cols-1 md:grid-cols-4 gap-4 text-center">
                                         <div className="p-3 bg-slate-100 rounded border"><div className="text-xs text-slate-500">เงินสดเริ่มต้น (Working Cap)</div><div className="font-bold text-slate-700">{fmt(c.workingCap)}</div></div>
-                                        <div className="p-3 bg-blue-50 rounded border border-blue-100"><div className="text-xs text-blue-500">กำไรดำเนินงานรวม (Op. Cash)</div><div className="font-bold text-blue-700">+{fmt(c.cfTotal.netOpCash)}</div></div>
+                                        <div className={`p-3 rounded border ${c.lowestCashBalance < 0 ? 'bg-red-100 border-red-300' : 'bg-green-50 border-green-200'}`}><div className={`text-xs font-bold ${c.lowestCashBalance < 0 ? 'text-red-600' : 'text-green-600'}`}>จุดเงินสดต่ำสุด (Lowest)</div><div className={`font-bold ${c.lowestCashBalance < 0 ? 'text-red-700' : 'text-green-700'}`}>{fmt(c.lowestCashBalance)}</div></div>
                                         <div className="p-3 bg-blue-50 rounded border border-blue-100 text-red-500"><div className="text-xs text-red-500">ผ่อนเงินต้น+ดอกเบี้ย</div><div className="font-bold">-{fmt(c.annualPrincipalPaid + c.annualFinanceCost)}</div></div>
                                         <div className="p-3 bg-red-50 rounded border border-red-100"><div className="text-xs text-red-500">หักภาษีจ่ายจริงปีนี้ (Cash Paid)</div><div className="font-bold text-red-700">-{fmt(c.cfTotal.tax)}</div></div>
                                         <div className="col-span-1 md:col-span-2 p-3 bg-indigo-50 rounded border border-indigo-200 mt-2 md:mt-0"><div className="text-xs text-indigo-600">กำไรสุทธิทางบัญชี (Net Profit)</div><div className="font-bold text-xl text-indigo-800">{fmt(c.netProfit)}</div><div className="text-[10px] text-indigo-400">(รายได้ - ค่าใช้จ่าย - ค่าเสื่อม - ดอกเบี้ย - ภาษี)</div></div>
@@ -916,17 +995,17 @@
                                         </div>
                                         <div className="p-2 border rounded bg-white">
                                             <div className="text-[10px] text-slate-500 uppercase font-bold">ROA</div>
-                                            <div className="text-lg font-bold text-blue-600">{((c.netProfit / c.totalSources)*100).toFixed(1)}%</div>
+                                            <div className="text-lg font-bold text-blue-600">{c.totalSources > 0 ? ((c.netProfit / c.totalSources)*100).toFixed(1) : 0}%</div>
                                             <div className="text-[9px] text-slate-400">ผลตอบแทนต่อสินทรัพย์</div>
                                         </div>
                                         <div className="p-2 border rounded bg-white">
                                             <div className="text-[10px] text-slate-500 uppercase font-bold">ROE</div>
-                                            <div className="text-lg font-bold text-blue-600">{((c.netProfit / d.regCapital)*100).toFixed(1)}%</div>
+                                            <div className="text-lg font-bold text-blue-600">{d.regCapital > 0 ? ((c.netProfit / d.regCapital)*100).toFixed(1) : 0}%</div>
                                             <div className="text-[9px] text-slate-400">ผลตอบแทนต่อส่วนผู้ถือหุ้น</div>
                                         </div>
                                         <div className="p-2 border rounded bg-white">
                                             <div className="text-[10px] text-slate-500 uppercase font-bold">Asset Turnover</div>
-                                            <div className="text-lg font-bold text-slate-600">{(c.grossRev / c.totalSources).toFixed(2)}x</div>
+                                            <div className="text-lg font-bold text-slate-600">{c.totalSources > 0 ? (c.grossRev / c.totalSources).toFixed(2) : 0}x</div>
                                             <div className="text-[9px] text-slate-400">หมุนเวียนสินทรัพย์ (รอบ/ปี)</div>
                                         </div>
                                     </div>
@@ -934,7 +1013,7 @@
                             </div>
                             
                             <div className="card">
-                                <div className="card-header"><div className="card-title">Detailed 5-Year Financial Projection (With Tax Shield)</div><div className="flex gap-4 text-xs items-center"><div className="flex items-center gap-1"><span>Growth:</span><input className="w-12 border rounded text-center" value={d.growth} onChange={e=>up('growth',null,e.target.value)}/>%</div><div className="flex items-center gap-1"><span>Inflation:</span><input className="w-12 border rounded text-center" value={d.inflation} onChange={e=>up('inflation',null,e.target.value)}/>%</div><div className="flex items-center gap-1 font-bold text-blue-600"><span>Discount Rate:</span><input className="w-12 border rounded text-center" value={d.discountRate} onChange={e=>up('discountRate',null,e.target.value)}/>%</div></div></div>
+                                <div className="card-header"><div className="card-title">Detailed 5-Year Financial Projection (With Tax Shield & Split Growth)</div><div className="flex gap-4 text-xs items-center"><div className="flex items-center gap-1"><span>Growth:</span><input className="w-12 border rounded text-center" value={d.growth} onChange={e=>up('growth',null,e.target.value)}/>%</div><div className="flex items-center gap-1"><span>Inflation:</span><input className="w-12 border rounded text-center" value={d.inflation} onChange={e=>up('inflation',null,e.target.value)}/>%</div><div className="flex items-center gap-1 font-bold text-blue-600"><span>Discount Rate:</span><input className="w-12 border rounded text-center" value={d.discountRate} onChange={e=>up('discountRate',null,e.target.value)}/>%</div></div></div>
                                 <div className="overflow-x-auto custom-scroll mb-2">
                                     <table className="w-full text-xs text-right border-collapse min-w-[800px]"><thead className="bg-indigo-900 text-white"><tr><th className="p-3 text-center">Year</th><th className="p-3">Revenue</th><th className="p-3 text-red-300">Op. Expense (Cash)</th><th className="p-3 font-bold text-yellow-300">EBITDA</th><th className="p-3 text-slate-300">Depreciation</th><th className="p-3 text-orange-300">Tax Expense</th><th className="p-3 font-bold text-blue-300 bg-indigo-800">Net Profit</th><th className="p-3 text-green-300">Dividend</th><th className="p-3 font-bold text-green-400 bg-indigo-950">Cash Balance (End)</th></tr></thead>
                                     <tbody>{projection.data.map((y,i) => (<tr key={i} className="border-b last:border-0 hover:bg-indigo-50"><td className="p-3 text-center font-bold text-indigo-900 bg-gray-50">{y.y}</td><td className="p-3 font-medium">{fmt(y.rev)}</td><td className="p-3 text-red-600">{fmt(y.exp)}</td><td className="p-3 font-bold text-yellow-700 bg-yellow-50">{fmt(y.ebitda)}</td><td className="p-3 text-slate-500">{fmt(y.dep)}</td><td className="p-3 text-orange-600">{fmt(y.tax)}{y.taxSaving > 0 && <div className="text-[9px] text-green-500">(Save {fmt(y.taxSaving)})</div>}</td><td className="p-3 font-bold text-blue-700 bg-blue-50">{fmt(y.net)}</td><td className="p-3 text-green-700">{fmt(y.div)}</td><td className="p-3 font-bold text-green-800 bg-green-100">{fmt(y.cash)}</td></tr>))}</tbody></table>
@@ -944,6 +1023,86 @@
                                     <div className={`text-xl font-bold ${projection.npv > 0 ? 'text-green-600' : 'text-red-600'}`}>NPV: {fmt(projection.npv)}</div>
                                 </div>
                             </div>
+
+                            {/* NEW: Financial Glossary Section */}
+                            <div className="card mt-6 border-slate-200 shadow-sm">
+                                <div className="card-header bg-slate-100"><div className="card-title text-slate-600 text-sm">📚 คำอธิบายตัวย่อทางการเงิน (Financial Glossary)</div></div>
+                                <div className="card-body">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-xs text-slate-600">
+                                        <div className="p-2 border rounded hover:bg-slate-50">
+                                            <div className="font-bold text-indigo-700 mb-1">EBITDA (กำไรกระแสเงินสด)</div>
+                                            <div className="text-slate-500 italic mb-1">Earnings Before Interest, Tax, Depreciation</div>
+                                            <div>กำไรจากการดำเนินงานก่อนหักดอกเบี้ย ภาษี และค่าเสื่อม เป็นตัวบอกความสามารถในการสร้างเงินสดจริงของกิจการ</div>
+                                        </div>
+                                        <div className="p-2 border rounded hover:bg-slate-50">
+                                            <div className="font-bold text-green-700 mb-1">NPV (มูลค่าปัจจุบันสุทธิ)</div>
+                                            <div className="text-slate-500 italic mb-1">Net Present Value</div>
+                                            <div>มูลค่ารวมของกระแสเงินสดในอนาคตที่คิดลดกลับมาเป็นค่าเงินปัจจุบัน หักด้วยเงินลงทุน <br/><span className="font-bold text-green-600">> 0 คือคุ้มค่าน่าลงทุน</span></div>
+                                        </div>
+                                        <div className="p-2 border rounded hover:bg-slate-50">
+                                            <div className="font-bold text-blue-700 mb-1">DSCR (ความสามารถชำระหนี้)</div>
+                                            <div className="text-slate-500 italic mb-1">Debt Service Coverage Ratio</div>
+                                            <div>(EBITDA / หนี้ที่ต้องจ่ายต่อปี) ใช้ดูว่ามีเงินสดพอจ่ายหนี้ธนาคารไหม <br/><span className="font-bold text-blue-600">ควร > 1.25 (ธนาคารชอบ)</span></div>
+                                        </div>
+                                        <div className="p-2 border rounded hover:bg-slate-50">
+                                            <div className="font-bold text-orange-700 mb-1">D/E Ratio (หนี้สินต่อทุน)</div>
+                                            <div className="text-slate-500 italic mb-1">Debt to Equity Ratio</div>
+                                            <div>สัดส่วนหนี้สินเทียบกับเงินทุนเจ้าของ ยิ่งสูงยิ่งเสี่ยง <br/><span className="font-bold text-orange-600">ไม่ควรเกิน 2.0 เท่า</span></div>
+                                        </div>
+                                        <div className="p-2 border rounded hover:bg-slate-50">
+                                            <div className="font-bold text-teal-700 mb-1">ROE (ผลตอบแทนส่วนเจ้าของ)</div>
+                                            <div className="text-slate-500 italic mb-1">Return on Equity</div>
+                                            <div>(กำไรสุทธิ / ส่วนของผู้ถือหุ้น) เงินที่เจ้าของลงไป 100 บาท งอกเงยเป็นกำไรกี่บาท <br/><span className="font-bold text-teal-600">ยิ่งสูงยิ่งดี (ควร > 10-15%)</span></div>
+                                        </div>
+                                        <div className="p-2 border rounded hover:bg-slate-50">
+                                            <div className="font-bold text-pink-700 mb-1">Break-even Point (จุดคุ้มทุน)</div>
+                                            <div className="text-slate-500 italic mb-1">BEP (Units)</div>
+                                            <div>จำนวนสินค้าที่ต้องขายเพื่อให้รายได้เท่ากับรายจ่ายพอดี (กำไร = 0) ถ้าขายเกินจุดนี้คือกำไร</div>
+                                        </div>
+                                        <div className="p-2 border rounded hover:bg-slate-50">
+                                            <div className="font-bold text-teal-700 mb-1">ROA (ผลตอบแทนต่อสินทรัพย์)</div>
+                                            <div className="text-slate-500 italic mb-1">Return on Assets</div>
+                                            <div>(กำไรสุทธิ / สินทรัพย์รวม) วัดความสามารถในการใช้สินทรัพย์สร้างกำไร <br/><span className="font-bold text-teal-600">ยิ่งสูงยิ่งดี</span></div>
+                                        </div>
+                                        <div className="p-2 border rounded hover:bg-slate-50">
+                                            <div className="font-bold text-slate-700 mb-1">Asset Turnover (หมุนเวียนสินทรัพย์)</div>
+                                            <div className="text-slate-500 italic mb-1">Asset Turnover Ratio</div>
+                                            <div>(ยอดขาย / สินทรัพย์รวม) สินทรัพย์ 1 บาท สร้างยอดขายได้กี่บาท บอกถึงประสิทธิภาพการใช้สินทรัพย์</div>
+                                        </div>
+                                        <div className="p-2 border rounded hover:bg-slate-50">
+                                            <div className="font-bold text-blue-600 mb-1">Gross Margin (กำไรขั้นต้น)</div>
+                                            <div className="text-slate-500 italic mb-1">Gross Profit Margin</div>
+                                            <div>((ยอดขาย - ต้นทุนขาย) / ยอดขาย) % กำไรหลังหักต้นทุนผลิตโดยตรง ไม่รวมค่าใช้จ่ายบริหาร</div>
+                                        </div>
+                                        <div className="p-2 border rounded hover:bg-slate-50">
+                                            <div className="font-bold text-green-600 mb-1">Net Margin (กำไรสุทธิ)</div>
+                                            <div className="text-slate-500 italic mb-1">Net Profit Margin</div>
+                                            <div>(กำไรสุทธิ / ยอดขาย) % กำไรที่เหลือจริงๆ หลังหักค่าใช้จ่ายทุกอย่างรวมถึงดอกเบี้ยและภาษี</div>
+                                        </div>
+                                        <div className="p-2 border rounded hover:bg-slate-50">
+                                            <div className="font-bold text-indigo-600 mb-1">Working Capital (เงินทุนหมุนเวียน)</div>
+                                            <div className="text-slate-500 italic mb-1">Current Assets - Current Liabilities</div>
+                                            <div>เงินสดที่ต้องสำรองไว้เพื่อให้ธุรกิจเดินต่อได้ ไม่สะดุด (สำคัญมากช่วงรอเก็บเงินจากลูกค้า)</div>
+                                        </div>
+                                        <div className="p-2 border rounded hover:bg-slate-50">
+                                            <div className="font-bold text-purple-600 mb-1">Tax Shield (โล่ภาษี)</div>
+                                            <div className="text-slate-500 italic mb-1">Loss Carry Forward</div>
+                                            <div>สิทธิ์ทางภาษีที่ให้นำ "ผลขาดทุนสะสม" ในอดีต มาหักลบกำไรในอนาคต เพื่อจ่ายภาษีน้อยลง (ใช้ได้ 5 ปี)</div>
+                                        </div>
+                                        <div className="p-2 border rounded hover:bg-slate-50">
+                                            <div className="font-bold text-pink-600 mb-1">CPA / CPO</div>
+                                            <div className="text-slate-500 italic mb-1">Cost Per Acquisition / Order</div>
+                                            <div>ต้นทุนการตลาดทั้งหมด หารด้วยจำนวนออเดอร์ เพื่อดูว่าต้องจ่ายกี่บาทเพื่อให้ได้ลูกค้า 1 ราย</div>
+                                        </div>
+                                        <div className="p-2 border rounded hover:bg-slate-50">
+                                            <div className="font-bold text-sky-600 mb-1">CPC (Max Bid)</div>
+                                            <div className="text-slate-500 italic mb-1">Cost Per Click</div>
+                                            <div>ราคาต่อคลิกสูงสุดที่เราจ่ายไหวเพื่อให้ยังคุ้มทุน (ขึ้นอยู่กับ Conversion Rate และ Basket Size)</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
                         </div>
 
                     </main>
