@@ -113,7 +113,7 @@
         const TRANS = {
             th: {
                 title: "Thai Fortunate Innovation",
-                subtitle: "Financial Strategy Simulator (Ultimate VAT Fixed)",
+                subtitle: "Financial Strategy Simulator",
                 scenario: "SCENARIO:",
                 reset: "Reset",
                 share: "Share",
@@ -177,7 +177,7 @@
                 creditWarning: "*เลือกเครดิตนานขึ้น เงินสดจะเข้าช้าลง",
                 totalSales: "ยอดขายรวม",
                 targetPerDay: "เป้าต่อวัน",
-                targetPerHour: "เป้าต่อ ชม. (8h)",
+                targetPerHour: "เป้าต่อ ชม. (24h)",
                 byProductTitle: "รายได้จากการขายของเสีย (By-products)",
                 item: "รายการ",
                 pricePerTon: "ราคา/ตัน",
@@ -198,7 +198,7 @@
                 cashInflow: "1. Cash Inflow",
                 salesGross: "- Sales (Gross)",
                 vatObligation: "2. VAT Obligation",
-                vatNote2: "* VAT จากยอดขายรวม (สมัครใจเข้าระบบ VAT)",
+                vatNote2: "* VAT จากยอดขายรวม",
                 opOutflow: "3. Operational Outflow",
                 varExclVat: "Variable (excl. VAT)",
                 fixedCost: "Fixed Cost",
@@ -243,6 +243,7 @@
                 shareholderReturn: "ผลตอบแทนผู้ถือหุ้น (Per Shareholder)",
                 totalPool: "จากยอดปันผลรวม (Total Pool)",
                 perYear: "บาท/ปี",
+                perMonth: "บาท/เดือน",
                 avgPerMonth: "เฉลี่ย",
                 financialHealth: "Financial Health Check (Year 1)",
                 debtToEquity: "D/E Ratio (หนี้สินต่อทุน)",
@@ -258,6 +259,16 @@
                 financialGlossary: "📚 คำอธิบายตัวย่อทางการเงิน (Financial Glossary)",
                 marketingGlossary: "📢 คำอธิบายตัวย่อทางการตลาด & โฆษณา (Marketing & Ads Glossary)",
                 
+                // --- Cash Flow Summary (Below Table) ---
+                wcStart: "เงินสดเริ่มต้น (Working Cap)",
+                lowestCash: "จุดเงินสดต่ำสุด (Lowest)",
+                debtService: "ผ่อนเงินต้น+ดอกเบี้ย",
+                taxPaidCash: "หักภาษีจ่ายจริงปีนี้ (Cash Paid)",
+                netProfitAcc: "กำไรสุทธิทางบัญชี (Net Profit)",
+                netProfitDesc: "(รายได้ - ค่าใช้จ่าย - ค่าเสื่อม - ดอกเบี้ย - ภาษี)",
+                cashEndYear: "เงินสดสุทธิสิ้นปี (Cash Balance Year End)",
+                cashEndDesc: "(เงินต้น + กระแสเงินสดรับจ่ายจริง - ภาษี - หนี้)",
+
                 // --- Cash Flow Table Headers ---
                 cfSales: "ยอดขาย (Booking)",
                 cfInflow: "เงินสดรับจริง",
@@ -373,7 +384,7 @@
             },
             cn: {
                 title: "泰国幸运创新 (Thai Fortunate Innovation)",
-                subtitle: "财务战略模拟器 (终极增值税修正版)",
+                subtitle: "财务战略模拟器",
                 scenario: "场景 (SCENARIO):",
                 reset: "重置",
                 share: "分享",
@@ -437,7 +448,7 @@
                 creditWarning: "*选择更长的信用期，现金回流会变慢",
                 totalSales: "总销售额",
                 targetPerDay: "每日目标",
-                targetPerHour: "每小时目标 (8h)",
+                targetPerHour: "每小时目标 (24h)",
                 byProductTitle: "副产品收入 (By-products)",
                 item: "项目",
                 pricePerTon: "价格/吨",
@@ -458,7 +469,7 @@
                 cashInflow: "1. 现金流入",
                 salesGross: "- 销售额 (毛)",
                 vatObligation: "2. 增值税义务",
-                vatNote2: "* 基于总销售额的增值税 (自愿加入增值税系统)",
+                vatNote2: "* 基于总销售额的增值税",
                 opOutflow: "3. 运营流出",
                 varExclVat: "变动成本 (不含税)",
                 fixedCost: "固定成本",
@@ -503,6 +514,7 @@
                 shareholderReturn: "股东回报 (Per Shareholder)",
                 totalPool: "来自总分红池 (Total Pool)",
                 perYear: "泰铢/年",
+                perMonth: "泰铢/月",
                 avgPerMonth: "平均",
                 financialHealth: "财务健康检查 (第1年)",
                 debtToEquity: "债务权益比 (D/E Ratio)",
@@ -517,36 +529,6 @@
                 adsPerformance: "📢 深入广告绩效 (Ads Performance)",
                 financialGlossary: "📚 财务缩略语解释 (Financial Glossary)",
                 marketingGlossary: "📢 营销与广告缩略语解释 (Marketing & Ads Glossary)",
-
-                // --- Cash Flow Table Headers ---
-                cfSales: "销售额 (预订)",
-                cfInflow: "实际现金流入",
-                cfExp: "现金支出",
-                cfVat: "增值税净额",
-                cfOpCash: "运营现金 (EBITDA)",
-                cfBalance: "现金余额",
-                start0: "0 (初始)",
-
-                // --- 5-Year Projection Headers ---
-                pyYear: "年份",
-                pyRev: "总收入",
-                pyExp: "运营支出 (现金)",
-                pyEbitda: "EBITDA",
-                pyDep: "折旧",
-                pyTax: "所得税",
-                pyNet: "净利润",
-                pyDiv: "分红",
-                pyCashEnd: "期末现金",
-
-                // --- Items (By-products & Campaigns) ---
-                prod_husk: "稻壳",
-                prod_fine: "细糠",
-                prod_rough: "粗糠",
-                prod_broken: "碎米",
-                prod_waste: "废料",
-                camp_gold1: "赢取黄金 1 钱",
-                camp_gold2: "赢取黄金 0.5 钱",
-                camp_free: "免费大米 1 年",
 
                 // AI Builders
                 meaning: "含义",
@@ -824,7 +806,7 @@
                 const maintenanceCostMonthly = maintenanceCostYearly / 12;
 
                 const dayTarget = data.targetBags / 30;
-                const hourTarget = dayTarget / 8; 
+                const hourTarget = dayTarget / 24; 
                 const riceRev = data.targetBags * data.price;
                 
                 const paddyTons = (data.targetBags * 5) / (data.yield/100) / 1000;
@@ -1336,6 +1318,10 @@
                                                     <td className="p-1 text-right font-medium text-slate-600">{fmt(item.qty * item.costPerUnit)}</td>
                                                 </tr>
                                             ))}
+                                            <tr className="font-bold text-yellow-900 border-t border-yellow-200">
+                                                <td colSpan="3" className="p-1 text-right">Total Campaign</td>
+                                                <td className="p-1 text-right">{fmt(d.fixedParams.campaign)}</td>
+                                            </tr>
                                         </tbody>
                                     </table>
                                 </div>
@@ -1643,12 +1629,12 @@
                                         </tbody>
                                     </table>
                                     <div className="mt-4 grid grid-cols-1 md:grid-cols-4 gap-4 text-center">
-                                            <div className="p-3 bg-slate-100 rounded border"><div className="text-xs text-slate-500">เงินสดเริ่มต้น (Working Cap)</div><div className="font-bold text-slate-700">{fmt(c.workingCap)}</div></div>
-                                            <div className={`p-3 rounded border ${c.lowestCashBalance < 0 ? 'bg-red-100 border-red-300' : 'bg-green-50 border-green-200'}`}><div className={`text-xs font-bold ${c.lowestCashBalance < 0 ? 'text-red-600' : 'text-green-600'}`}>จุดเงินสดต่ำสุด (Lowest)</div><div className={`font-bold ${c.lowestCashBalance < 0 ? 'text-red-700' : 'text-green-700'}`}>{fmt(c.lowestCashBalance)}</div></div>
-                                            <div className="p-3 bg-blue-50 rounded border border-blue-100 text-red-500"><div className="text-xs text-red-500">ผ่อนเงินต้น+ดอกเบี้ย</div><div className="font-bold">-{fmt(c.annualPrincipalPaid + c.annualFinanceCost)}</div></div>
-                                            <div className="p-3 bg-red-50 rounded border border-red-100"><div className="text-xs text-red-500">หักภาษีจ่ายจริงปีนี้ (Cash Paid)</div><div className="font-bold text-red-700">-{fmt(c.cfTotal.tax)}</div></div>
-                                            <div className="col-span-1 md:col-span-2 p-3 bg-indigo-50 rounded border border-indigo-200 mt-2 md:mt-0"><div className="text-xs text-indigo-600">กำไรสุทธิทางบัญชี (Net Profit)</div><div className="font-bold text-xl text-indigo-800">{fmt(c.netProfit)}</div><div className="text-[10px] text-indigo-400">(รายได้ - ค่าใช้จ่าย - ค่าเสื่อม - ดอกเบี้ย - ภาษี)</div></div>
-                                            <div className="col-span-1 md:col-span-2 p-3 bg-green-50 rounded border border-green-200 mt-2 md:mt-0"><div className="text-xs text-green-600">เงินสดสุทธิสิ้นปี (Cash Balance Year End)</div><div className={`font-bold text-xl ${c.cfTotal.cashFinal < 0 ? 'text-red-600':'text-green-800'}`}>{fmt(c.cfTotal.cashFinal)}</div><div className="text-[10px] text-green-500">(เงินต้น + กำไรเงินสด - ภาษีจ่ายจริง - หนี้)</div></div>
+                                            <div className="p-3 bg-slate-100 rounded border"><div className="text-xs text-slate-500">{t('wcStart')}</div><div className="font-bold text-slate-700">{fmt(c.workingCap)}</div></div>
+                                            <div className={`p-3 rounded border ${c.lowestCashBalance < 0 ? 'bg-red-100 border-red-300' : 'bg-green-50 border-green-200'}`}><div className={`text-xs font-bold ${c.lowestCashBalance < 0 ? 'text-red-600' : 'text-green-600'}`}>{t('lowestCash')}</div><div className={`font-bold ${c.lowestCashBalance < 0 ? 'text-red-700' : 'text-green-700'}`}>{fmt(c.lowestCashBalance)}</div></div>
+                                            <div className="p-3 bg-blue-50 rounded border border-blue-100 text-red-500"><div className="text-xs text-red-500">{t('debtService')}</div><div className="font-bold">-{fmt(c.annualPrincipalPaid + c.annualFinanceCost)}</div></div>
+                                            <div className="p-3 bg-red-50 rounded border border-red-100"><div className="text-xs text-red-500">{t('taxPaidCash')}</div><div className="font-bold text-red-700">-{fmt(c.cfTotal.tax)}</div></div>
+                                            <div className="col-span-1 md:col-span-2 p-3 bg-indigo-50 rounded border border-indigo-200 mt-2 md:mt-0"><div className="text-xs text-indigo-600">{t('netProfitAcc')}</div><div className="font-bold text-xl text-indigo-800">{fmt(c.netProfit)}</div><div className="text-[10px] text-indigo-400">{t('netProfitDesc')}</div></div>
+                                            <div className="col-span-1 md:col-span-2 p-3 bg-green-50 rounded border border-green-200 mt-2 md:mt-0"><div className="text-xs text-green-600">{t('cashEndYear')}</div><div className={`font-bold text-xl ${c.cfTotal.cashFinal < 0 ? 'text-red-600':'text-green-800'}`}>{fmt(c.cfTotal.cashFinal)}</div><div className="text-[10px] text-green-500">{t('cashEndDesc')}</div></div>
                                     </div>
                                 </div>
                             </div>
@@ -1656,7 +1642,7 @@
                             <div className="card">
                                 <div className="card-header"><div className="card-title">{t('taxDepTitle')}</div><div className="flex bg-slate-100 rounded text-[10px] overflow-hidden toggle-switch-container"><button className={`px-2 py-1 ${d.taxPaymentMode==='monthly'?'bg-blue-600 text-white':''}`} onClick={()=>up('taxPaymentMode',null,'monthly')}>Monthly</button><button className={`px-2 py-1 ${d.taxPaymentMode==='annual'?'bg-blue-600 text-white':''}`} onClick={()=>up('taxPaymentMode',null,'annual')}>Annual</button><button className={`px-2 py-1 ${d.taxPaymentMode==='deferred'?'bg-blue-600 text-white':''}`} onClick={()=>up('taxPaymentMode',null,'deferred')}>Deferred</button></div></div>
                                 <div className="card-body"><div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                    <div><h4 className="font-bold text-slate-700 mb-3 border-b pb-2">{t('depSchedule')}</h4><table className="w-full text-sm text-right"><thead className="bg-slate-50 text-slate-500"><tr><th className="text-left p-2">{t('asset')}</th><th className="p-2">{t('value')}</th><th className="p-2">{t('lifeYear')}</th><th className="p-2">{t('depPerYear')}</th></tr></thead><tbody><tr><td className="text-left p-2">{t('factory')}</td><td className="p-2">{fmt(d.capex.factory)}</td><td className="p-2">{d.depreciation.factoryYears}</td><td className="p-2">{fmt(c.depFactory)}</td></tr><tr><td className="text-left p-2">{t('machine')}</td><td className="p-2">{fmt(d.capex.machine)}</td><td className="p-2">{d.depreciation.machineYears}</td><td className="p-2">{fmt(c.depMachine)}</td></tr><tr className="font-bold border-t"><td className="text-left p-2">{t('total')}</td><td></td><td></td><td className="p-2 text-red-500">{fmt(c.annualDepreciation)}</td></tr></tbody></table></div>
+                                    <div><h4 className="font-bold text-slate-700 mb-3 border-b pb-2">{t('depSchedule')}</h4><table className="w-full text-sm text-right"><thead className="bg-slate-50 text-slate-500"><tr><th className="text-left p-2">{t('asset')}</th><th className="p-2">{t('value')}</th><th className="p-2">{t('lifeYear')}</th><th className="p-2">{t('depPerYear')}</th></tr></thead><tbody><tr><td className="text-left p-2">{t('factory')}</td><td className="p-2">{fmt(d.capex.factory)}</td><td className="p-2"><input type="number" className="input-field text-center w-16" value={d.depreciation.factoryYears} onChange={e=>up('depreciation','factoryYears',e.target.value)}/></td><td className="p-2">{fmt(c.depFactory)}</td></tr><tr><td className="text-left p-2">{t('machine')}</td><td className="p-2">{fmt(d.capex.machine)}</td><td className="p-2"><input type="number" className="input-field text-center w-16" value={d.depreciation.machineYears} onChange={e=>up('depreciation','machineYears',e.target.value)}/></td><td className="p-2">{fmt(c.depMachine)}</td></tr><tr className="font-bold border-t"><td className="text-left p-2">{t('total')}</td><td></td><td></td><td className="p-2 text-red-500">{fmt(c.annualDepreciation)}</td></tr></tbody></table></div>
                                     <div><h4 className="font-bold text-slate-700 mb-3 border-b pb-2">{t('corpTax')}</h4><div className="space-y-2 text-sm"><div className="flex justify-between"><span>EBITDA</span><span>{fmt(c.ebitda)}</span></div><div className="flex justify-between text-red-500"><span>- Depreciation</span><span>-{fmt(c.annualDepreciation)}</span></div><div className="flex justify-between text-red-500"><span>- Interest</span><span>-{fmt(c.annualFinanceCost)}</span></div><div className="flex justify-between font-bold text-blue-700 border-t pt-2"><span>{t('taxableIncome')}</span><span>{fmt(c.annualProfitEst)}</span></div></div><div className="bg-slate-50 p-2 rounded text-xs mt-3"><table className="w-full text-right"><thead><tr className="text-slate-400"><th>Tier</th><th>Rate</th><th>Tax</th></tr></thead><tbody>{c.taxDetails.map((t,i)=>(<tr key={i}><td className="text-slate-600">{t.tier}</td><td>{t.rate}%</td><td className="font-medium">{fmt(t.amount)}</td></tr>))}<tr className="border-t font-bold text-red-600"><td colSpan="2" className="pt-1">Total Tax</td><td className="pt-1">{fmt(c.annualTax)}</td></tr></tbody></table></div></div></div></div>
                             </div>
 
@@ -1666,7 +1652,7 @@
                                     <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                                         <div className="space-y-3"><h4 className="font-bold text-slate-700 text-sm border-b pb-1">{t('policyInput')}</h4><div className="input-group"><label className="input-label">{t('payoutRatio')}</label><input className="input-field" value={d.dividend.payout} onChange={e=>up('dividend','payout',e.target.value)}/></div><div className="input-group"><label className="input-label">{t('shareholders')}</label><input className="input-field" value={d.dividend.founders} onChange={e=>up('dividend','founders',e.target.value)}/></div></div>
                                         <div className="space-y-3"><h4 className="font-bold text-slate-700 text-sm border-b pb-1">{t('netProfitBreakdown')}</h4><div className="flex justify-between text-xs text-slate-500"><span>EBITDA (Year)</span><span>{fmt(c.ebitda)}</span></div><div className="flex justify-between text-xs text-red-400"><span>- Depreciation</span><span>-{fmt(c.annualDepreciation)}</span></div><div className="flex justify-between text-xs text-red-400"><span>- Interest</span><span>-{fmt(c.annualFinanceCost)}</span></div><div className="flex justify-between text-xs text-red-400 border-b border-slate-200 pb-1"><span>- Tax Liability</span><span>-{fmt(c.annualTax)}</span></div><div className="flex justify-between text-sm pt-1"><span className="font-bold text-slate-700">Net Profit</span><span className="font-bold text-blue-600">{fmt(c.netProfit)}</span></div></div>
-                                        <div className="bg-yellow-50 p-4 rounded border border-yellow-200 text-center flex flex-col justify-center"><h4 className="font-bold text-yellow-800 text-sm mb-2">{t('shareholderReturn')}</h4><div className="text-xs text-slate-500 mb-1">{t('totalPool')}</div><div className="text-lg font-bold text-yellow-700 mb-2">{fmt(c.dividendTotal)} ฿</div><div className="border-t border-yellow-200 my-2"></div><div className="text-2xl font-bold text-yellow-700">{fmt(c.dividendPerPersonYear)} <span className="text-sm font-normal text-yellow-600">{t('perYear')}</span></div><div className="text-sm text-yellow-600 mt-1">{t('avgPerMonth')} {fmt(c.dividendPerPersonMonth)}</div></div>
+                                        <div className="bg-yellow-50 p-4 rounded border border-yellow-200 text-center flex flex-col justify-center"><h4 className="font-bold text-yellow-800 text-sm mb-2">{t('shareholderReturn')}</h4><div className="text-xs text-slate-500 mb-1">{t('totalPool')}</div><div className="text-lg font-bold text-yellow-700 mb-2">{fmt(c.dividendTotal)} ฿</div><div className="border-t border-yellow-200 my-2"></div><div className="text-2xl font-bold text-yellow-700">{fmt(c.dividendPerPersonYear)} <span className="text-sm font-normal text-yellow-600">{t('perYear')}</span></div><div className="text-sm text-yellow-600 mt-1">{t('avgPerMonth')} {fmt(c.dividendPerPersonMonth)} {t('perMonth')}</div></div>
                                     </div>
                                 </div>
                             </div>
