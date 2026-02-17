@@ -292,6 +292,36 @@
                 cashEndYear: "เงินสดสุทธิสิ้นปี (Cash Balance Year End)",
                 cashEndDesc: "(เงินต้น + กระแสเงินสดรับจ่ายจริง - ภาษี - หนี้)",
 
+                // --- NEW MODEL TRANSLATIONS ---
+                channelMixTitle: "🛒 Channel Mix Revenue (สัดส่วนช่องทางขาย)",
+                channelPct: "% ยอดขาย",
+                platformFeePct: "ค่าธรรมเนียม %",
+                offline: "Offline / Other",
+                weightedFee: "เฉลี่ย (Weighted Fee):",
+
+                elasticityTitle: "💎 Brand Pricing Elasticity (ความยืดหยุ่นราคา)",
+                elasticityCoef: "ความอ่อนไหวต่อราคา (Elasticity)",
+                elasticityDesc: "(-1.5 แปลว่า ขึ้นราคา 10% ยอดขายตก 15%)",
+                optPrice: "ราคาปัจจุบัน",
+                estVol: "ยอดขายคาดการณ์",
+                estRev: "รายได้คาดการณ์",
+                
+                clvTitle: "👥 Customer Lifetime Value (มูลค่าลูกค้าตลอดชีพ)",
+                freqPerYear: "ซื้อซ้ำ (ครั้ง/ปี)",
+                retentionRate: "อัตราลูกค้าเก่า (%)",
+                ltv1: "LTV (1 ปี)",
+                ltv3: "LTV (3 ปี)",
+                cac: "ต้นทุนหาลูกค้า (CAC)",
+                ltvCacRatio: "LTV : CAC Ratio",
+                ltvDesc: "คุ้มค่าเมื่อ Ratio > 3 เท่า",
+
+                seasonalTitle: "⛈️ Seasonal Supply Shock (ความเสี่ยงฤดูกาล)",
+                enableShock: "จำลองสถานการณ์ (Enable Scenario)",
+                shockMonthStart: "เดือนเริ่ม (Start)",
+                shockMonthEnd: "เดือนจบ (End)",
+                shockCostImpact: "ต้นทุนข้าวเพิ่ม (%)",
+                shockDesc: "ผลกระทบจะแสดงในตาราง Cashflow รายเดือน",
+
                 // --- Cash Flow Table Headers ---
                 cfSales: "ยอดขาย (Booking)",
                 cfInflow: "เงินสดรับจริง",
@@ -555,7 +585,7 @@
                 adsPerformance: "📢 深入广告绩效 (Ads Performance)",
                 financialGlossary: "📚 财务缩略语解释 (Financial Glossary)",
                 marketingGlossary: "📢 营销与广告缩略语解释 (Marketing & Ads Glossary)",
-
+                
                 // --- Additional Translations ---
                 beRoas: "盈亏平衡 ROAS (Breakeven)",
                 beRoasNote: "不得低于此值 (利润 = 0)",
@@ -585,6 +615,36 @@
                 netProfitDesc: "(收入 - 支出 - 折旧 - 利息 - 税)",
                 cashEndYear: "年末现金余额 (Cash Balance)",
                 cashEndDesc: "(初始资金 + 实际现金流 - 税 - 债务)",
+
+                // --- NEW MODEL TRANSLATIONS ---
+                channelMixTitle: "🛒 渠道收入组合 (Channel Mix)",
+                channelPct: "% 销售额",
+                platformFeePct: "手续费 %",
+                offline: "线下 / 其他",
+                weightedFee: "平均 (Weighted Fee):",
+
+                elasticityTitle: "💎 品牌价格弹性 (Brand Pricing Elasticity)",
+                elasticityCoef: "价格敏感度 (Elasticity)",
+                elasticityDesc: "(-1.5 意味着 价格上涨 10%，销量下降 15%)",
+                optPrice: "当前价格",
+                estVol: "预估销量",
+                estRev: "预估收入",
+                
+                clvTitle: "👥 客户终身价值 (CLV)",
+                freqPerYear: "购买频率 (次/年)",
+                retentionRate: "留存率 (%)",
+                ltv1: "LTV (1 年)",
+                ltv3: "LTV (3 年)",
+                cac: "获客成本 (CAC)",
+                ltvCacRatio: "LTV : CAC 比例",
+                ltvDesc: "Ratio > 3 倍时值得投入",
+
+                seasonalTitle: "⛈️ 季节性供应冲击 (Seasonal Supply Shock)",
+                enableShock: "模拟场景 (Enable Scenario)",
+                shockMonthStart: "开始月份",
+                shockMonthEnd: "结束月份",
+                shockCostImpact: "稻谷成本增加 (%)",
+                shockDesc: "影响将显示在每月的现金流表中",
 
                 // --- Cash Flow Table Headers ---
                 cfSales: "销售额 (预订)",
@@ -738,7 +798,13 @@
             growth: 10, inflation: 3, monthlyGrowth: 0, discountRate: 10,
             // New Funnel Assumptions
             mktFunnel: { basketSize: 1.0, cvr: 2.0, ctr: 1.5 },
-            scenario: 'base', taxPaymentMode: 'annual'
+            scenario: 'base', taxPaymentMode: 'annual',
+            // --- NEW FEATURES ---
+            clvParams: { freq: 4, retention: 60 },
+            channelMix: { tiktok: 80, shopee: 10, offline: 10 },
+            channelFees: { tiktok: 12, shopee: 8, offline: 0 },
+            elasticityParams: { coefficient: 1.5 }, // Price Elasticity of Demand
+            seasonalShock: { active: false, startM: 5, endM: 8, costImpact: 20 }
         };
 
         const App = () => {
@@ -760,17 +826,29 @@
                         if (parsed.fixedParams && parsed.fixedParams.insurance === undefined) {
                             parsed.fixedParams.insurance = 60000;
                         }
+                        // Default new features
+                        if (!parsed.clvParams) parsed.clvParams = INITIAL.clvParams;
+                        if (!parsed.channelMix) parsed.channelMix = INITIAL.channelMix;
+                        if (!parsed.channelFees) parsed.channelFees = INITIAL.channelFees;
+                        if (!parsed.elasticityParams) parsed.elasticityParams = INITIAL.elasticityParams;
+                        if (!parsed.seasonalShock) parsed.seasonalShock = INITIAL.seasonalShock;
                         return parsed;
                     }
 
-                    // 2. Fallback to LocalStorage
-                    const savedData = localStorage.getItem('morbSukFinancialData_v42'); 
+                    // 2. Fallback to LocalStorage - Use NEW KEY v43 to force fresh state
+                    const savedData = localStorage.getItem('morbSukFinancialData_v43'); 
                     let parsed = savedData ? JSON.parse(savedData) : INITIAL;
                     if (!parsed.campaignDetails) parsed.campaignDetails = INITIAL.campaignDetails;
                      // Default insurance if missing
                     if (parsed.fixedParams && parsed.fixedParams.insurance === undefined) {
                         parsed.fixedParams.insurance = 60000;
                     }
+                    // Default new features
+                    if (!parsed.clvParams) parsed.clvParams = INITIAL.clvParams;
+                    if (!parsed.channelMix) parsed.channelMix = INITIAL.channelMix;
+                    if (!parsed.channelFees) parsed.channelFees = INITIAL.channelFees;
+                    if (!parsed.elasticityParams) parsed.elasticityParams = INITIAL.elasticityParams;
+                    if (!parsed.seasonalShock) parsed.seasonalShock = INITIAL.seasonalShock;
                     
                     // 3. Migrate old data to have IDs for translation if missing
                     parsed.byProducts = parsed.byProducts.map((p, i) => (!p.id ? { ...p, id: INITIAL.byProducts[i]?.id } : p));
@@ -785,13 +863,13 @@
             const [c, setC] = useState(null); 
 
             useEffect(() => { 
-                localStorage.setItem('morbSukFinancialData_v42', JSON.stringify(d)); 
+                localStorage.setItem('morbSukFinancialData_v43', JSON.stringify(d)); 
             }, [d]);
 
             const resetToDefault = () => {
                 if (confirm("Reset all data to default?")) { 
                     setD(INITIAL); 
-                    localStorage.removeItem('morbSukFinancialData_v42'); 
+                    localStorage.removeItem('morbSukFinancialData_v43'); 
                     // Clear URL params without reload
                     window.history.pushState({}, document.title, window.location.pathname);
                 }
@@ -872,6 +950,13 @@
                 });
             };
 
+            const upNew = (category, field, val) => {
+                setD(prev => ({
+                    ...prev,
+                    [category]: { ...prev[category], [field]: +val }
+                }));
+            };
+
             const handleYieldChange = (e) => {
                 const newYield = parseFloat(e.target.value);
                 setD(prev => {
@@ -927,11 +1012,16 @@
                 const baseRev = (riceRev - refundTotal) + totalByProductIncome + logIncome; 
                 const totalVatOut = baseRev - (baseRev / 1.07);
 
+                // Channel Mix Calculation
+                const cm = data.channelMix || { tiktok: 80, shopee: 10, offline: 10 };
+                const cFees = data.channelFees || { tiktok: 12, shopee: 8, offline: 0 }; 
+                const blendedFeePct = (cm.tiktok * cFees.tiktok + cm.shopee * cFees.shopee + cm.offline * cFees.offline) / 100;
+                const platformTotal = riceRev * (blendedFeePct/100); 
+
                 // Expenses
                 const riceTotal = paddyBudget; 
                 const packTotal = (data.unit.bag + data.unit.sticker) * data.targetBags; 
                 const elecTotal = data.varParams.elecRate * paddyTons; 
-                const platformTotal = riceRev * (data.varParams.platformPercent/100); 
                 const mktTotal = riceRev * (data.varParams.mktPercent/100); 
                 
                 const totalMarketingBudget = mktTotal; 
@@ -976,9 +1066,39 @@
                 const acos = riceRev > 0 ? (totalMarketingBudget / riceRev) * 100 : 0;
 
                 // Breakeven ROAS Calculation
-                const varCostPerUnit = matCostUnit + (data.varParams.elecRate * (5 / (data.yield/100)) / 1000) + (data.price * data.varParams.platformPercent/100);
+                const varCostPerUnit = matCostUnit + (data.varParams.elecRate * (5 / (data.yield/100)) / 1000) + (data.price * blendedFeePct/100);
                 const marginPerUnit = data.price - varCostPerUnit;
                 const beRoasVal = marginPerUnit > 0 ? data.price / marginPerUnit : 999;
+
+                // CLV Calculation
+                const clvP = data.clvParams || { freq: 4, retention: 60 };
+                const grossMarginPct = riceRev > 0 ? ((riceRev - (riceTotal + packTotal + elecTotal + salaryTotal)) / riceRev) : 0; 
+                const aov = basketSize * data.price;
+                const retention = clvP.retention / 100;
+                const ltv1 = (aov * clvP.freq * grossMarginPct); 
+                const ltv3 = ltv1 * 3; 
+                const churn = 1 - retention;
+                const lifetimeValue = churn > 0 ? (ltv1 / churn) : 0; 
+                const ltvCac = cpa > 0 ? lifetimeValue / cpa : 0;
+
+                // Elasticity Simulation Data
+                const elasticityData = [];
+                const baseVol = data.targetBags;
+                const baseP = data.price;
+                const coef = data.elasticityParams?.coefficient || 1.5;
+                
+                [-20, -10, 0, 10, 20].forEach(change => {
+                    const newP = baseP * (1 + change/100);
+                    const qtyChange = (change/100) * -coef;
+                    const newVol = baseVol * (1 + qtyChange);
+                    const newRev = newP * newVol;
+                    elasticityData.push({
+                        pct: `${change > 0 ? '+' : ''}${change}%`,
+                        price: newP,
+                        vol: newVol,
+                        rev: newRev
+                    });
+                });
 
                 const funnelMetrics = {
                     budget: totalMarketingBudget,
@@ -991,7 +1111,8 @@
                     roas: roas, 
                     acos: acos, 
                     gmv: riceRev,
-                    beRoas: beRoasVal // New
+                    beRoas: beRoasVal,
+                    ltv1, ltv3, ltvCac, lifetimeValue
                 };
 
                 const accruedRev = [];
@@ -1012,6 +1133,7 @@
                 const monthlyPrincipalPayment = data.loan.amount > 0 ? data.loan.amount / (data.loan.term * 12) : 0; 
 
                 const creditTermDays = parseInt(data.creditTerm || 0);
+                const season = data.seasonalShock || { active: false, startM: 5, endM: 8, costImpact: 20 };
 
                 for(let i=1; i<=12; i++) {
                     const mRev = accruedRev[i-1]; 
@@ -1038,7 +1160,14 @@
                     }
 
                     const growthFactor = Math.pow(1 + data.monthlyGrowth/100, i - 1);
-                    const mRice = riceTotal * growthFactor;
+                    
+                    // Apply Seasonality to Rice Cost
+                    let monthlyRiceCost = riceTotal * growthFactor;
+                    if (season.active && i >= season.startM && i <= season.endM) {
+                        monthlyRiceCost *= (1 + season.costImpact/100);
+                    }
+
+                    const mRice = monthlyRiceCost;
                     const mVatableVar = (packTotal + elecTotal + platformTotal + mktTotal) * growthFactor;
                     const mSalary = salaryTotal;
                     const mVatableFixed = (data.fixedParams.erp + data.fixedParams.campaign + data.fixedParams.other + maintenanceCostMonthly + insuranceMonthly);
@@ -1195,9 +1324,9 @@
                     dividendPerPersonYear, dividendPerPersonMonth,
                     annualFinanceCost, annualPrincipalPaid,
                     lowestCashBalance, 
-                    funnelMetrics, 
+                    funnelMetrics, blendedFeePct, elasticityData,
                     yrProj: null,
-                    refundTotal // Export refund amount
+                    refundTotal
                 };
             };
 
@@ -1469,6 +1598,26 @@
                                     <div className="flex justify-between text-xs text-green-600 mt-2 bg-green-50 p-2 rounded"><span>{t('workingCap')}</span><span className="font-bold">{fmt(c.workingCap)}</span></div>
                                 </div>
                             </div>
+
+                            {/* NEW: Seasonal Shock Simulator */}
+                            <div className="card border-red-100">
+                                <div className="card-header bg-red-50"><div className="card-title text-red-700">{t('seasonalTitle')}</div></div>
+                                <div className="card-body p-3">
+                                    <div className="flex items-center gap-2 mb-3">
+                                        <input type="checkbox" className="w-4 h-4" checked={d.seasonalShock.active} onChange={e=>upNew('seasonalShock', 'active', e.target.checked)}/>
+                                        <span className="text-sm font-bold text-slate-700">{t('enableShock')}</span>
+                                    </div>
+                                    <div className={`space-y-2 ${!d.seasonalShock.active && 'opacity-50 pointer-events-none'}`}>
+                                        <div className="flex gap-2">
+                                            <div><label className="text-[10px] text-slate-500">{t('shockMonthStart')}</label><input type="number" className="input-field" min="1" max="12" value={d.seasonalShock.startM} onChange={e=>upNew('seasonalShock', 'startM', e.target.value)}/></div>
+                                            <div><label className="text-[10px] text-slate-500">{t('shockMonthEnd')}</label><input type="number" className="input-field" min="1" max="12" value={d.seasonalShock.endM} onChange={e=>upNew('seasonalShock', 'endM', e.target.value)}/></div>
+                                        </div>
+                                        <div><label className="text-[10px] text-slate-500">{t('shockCostImpact')}</label><input type="number" className="input-field border-red-300" value={d.seasonalShock.costImpact} onChange={e=>upNew('seasonalShock', 'costImpact', e.target.value)}/></div>
+                                        <div className="text-[9px] text-slate-400 mt-1">{t('shockDesc')}</div>
+                                    </div>
+                                </div>
+                            </div>
+
                             <div className="card"><div className="card-header"><div className="card-title">{t('productionTitle')}</div></div><div className="card-body"><div className="input-group mb-4"><label className="input-label flex justify-between"><span>{t('yieldRice')}</span><span className="font-bold text-blue-600">{d.yield}%</span></label><input type="range" className="w-full" min="40" max="70" value={d.yield} onChange={handleYieldChange}/></div><div className="input-group"><label className="input-label">{t('paddyPrice')}</label><input type="number" className="input-field" value={d.paddyPrice} onChange={e=>up('paddyPrice',null,e.target.value)}/></div><div className="text-xs text-slate-500 mt-2 text-right">{t('paddyUsed')} <b>{fmtDec(c.paddyTons)}</b> {t('ton')}</div><div className="text-xs text-right text-orange-600 font-bold">{t('riceBudget')} {fmt(c.riceTotal)}</div></div></div>
                             <div className="card"><div className="card-header"><div className="card-title">{t('unitCostTitle')}</div><div className="text-red-600 font-bold">{fmtDec(c.matCostUnit)}</div></div><div className="card-body"><div className="grid grid-cols-3 gap-2 text-center text-xs mb-2"><div className="bg-slate-100 p-1 rounded"><div>{t('rice')}</div><b>{fmtDec(c.riceCostUnit)}</b><div className="text-[10px] text-slate-500 mt-1 border-t border-slate-200 pt-1">{fmt(c.riceTotal)}</div></div><div className="bg-slate-100 p-1 rounded"><div>{t('bag')}</div><input className="w-full text-center bg-transparent font-bold" value={d.unit.bag} onChange={e=>up('unit','bag',e.target.value)}/><div className="text-[10px] text-slate-500 mt-1 border-t border-slate-200 pt-1">{fmt(d.unit.bag * d.targetBags)}</div></div><div className="bg-slate-100 p-1 rounded"><div>{t('sticker')}</div><input className="w-full text-center bg-transparent font-bold" value={d.unit.sticker} onChange={e=>up('unit','sticker',e.target.value)}/><div className="text-[10px] text-slate-500 mt-1 border-t border-slate-200 pt-1">{fmt(d.unit.sticker * d.targetBags)}</div></div></div><div className="text-xs text-right text-red-600 font-bold border-t border-slate-100 pt-2">{t('totalUnitCost')} {fmt(c.riceTotal + c.packTotal)}</div></div></div>
                             <div className="card"><div className="card-header"><div className="card-title">{t('hrTitle')}</div><div className="text-blue-600 font-bold text-sm">{fmt(c.salaryTotal)}</div></div><div className="card-body"><table className="w-full hr-table"><thead><tr><th>{t('role')}</th><th className="w-10 text-center">{t('count')}</th><th className="w-20 text-right">{t('salary')}</th><th className="w-16 text-right text-xs text-slate-500">{t('sso')}</th><th className="w-20 text-right font-bold">{t('total')}</th></tr></thead><tbody>{c.hrCosts.map((h,i)=>(<tr key={i}><td>{h.role}</td><td><input type="number" className="hr-input text-center" value={h.count} onChange={e=>upArr('hr',i,'count',e.target.value)}/></td><td><input type="number" className="hr-input" value={h.salary} onChange={e=>upArr('hr',i,'salary',e.target.value)}/></td><td className="text-right text-xs text-slate-500">{fmt(h.ssoTotalRole)}</td><td className="text-right font-bold text-slate-700">{fmt(h.totalPerRole)}</td></tr>))}</tbody></table></div></div>
@@ -1535,15 +1684,15 @@
                                 <div className="grid grid-cols-4 gap-2 text-center">
                                     <div className="bg-slate-700/50 rounded p-2 border border-slate-600">
                                         <div className="text-[10px] text-slate-400">Net Margin</div>
-                                        <div className="font-bold text-md text-green-300">{c.netMargin.toFixed(1)}%</div>
+                                        <div className="font-bold text-md text-green-300">{(c.netMargin || 0).toFixed(1)}%</div>
                                     </div>
                                     <div className="bg-slate-700/50 rounded p-2 border border-slate-600">
                                         <div className="text-[10px] text-slate-400">Gross Margin</div>
-                                        <div className="font-bold text-md text-blue-300">{c.grossMargin.toFixed(1)}%</div>
+                                        <div className="font-bold text-md text-blue-300">{(c.grossMargin || 0).toFixed(1)}%</div>
                                     </div>
                                     <div className="bg-slate-700/50 rounded p-2 border border-slate-600">
                                         <div className="text-[10px] text-slate-400">DSCR</div>
-                                        <div className={`font-bold text-md ${c.dscr>=1.25?'text-green-300':c.dscr>=1?'text-yellow-300':'text-red-400'}`}>{c.dscr.toFixed(2)}</div>
+                                        <div className={`font-bold text-md ${c.dscr>=1.25?'text-green-300':c.dscr>=1?'text-yellow-300':'text-red-400'}`}>{(c.dscr || 0).toFixed(2)}</div>
                                     </div>
                                     <div className="bg-slate-700/50 rounded p-2 border border-slate-600">
                                         <div className="text-[10px] text-slate-400">ROI</div>
@@ -1590,6 +1739,64 @@
                                         <div className="text-center"><div className="text-xs text-slate-500">{t('totalSales')}</div><div className="font-bold text-slate-700">{fmt(c.grossRev)}</div></div>
                                         <div className="text-center"><div className="text-xs text-slate-500">{t('targetPerDay')}</div><div className="font-bold text-slate-700">{fmt(c.dayTarget)}</div></div>
                                         <div className="text-center"><div className="text-xs text-slate-500">{t('targetPerHour')}</div><div className="font-bold text-slate-700">{fmtDec(c.hourTarget)}</div></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* NEW: Channel Mix Calculator */}
+                            <div className="card border-purple-200">
+                                <div className="card-header bg-purple-50"><div className="card-title text-purple-800">{t('channelMixTitle')}</div></div>
+                                <div className="card-body p-3">
+                                    <div className="flex justify-between text-xs font-bold text-slate-500 mb-2 px-2">
+                                        <span>Channel</span>
+                                        <span>{t('channelPct')}</span>
+                                        <span>{t('platformFeePct')}</span>
+                                    </div>
+                                    {['tiktok', 'shopee', 'offline'].map(ch => (
+                                        <div key={ch} className="flex items-center justify-between mb-2 text-sm">
+                                            <span className="capitalize w-20">{ch === 'offline' ? t('offline') : ch}</span>
+                                            <input type="number" className="w-12 border rounded text-center" value={d.channelMix[ch]} onChange={e=>upNew('channelMix', ch, e.target.value)}/>
+                                            <input type="number" className="w-12 border rounded text-center text-slate-500" value={d.channelFees[ch]} onChange={e=>upNew('channelFees', ch, e.target.value)}/>
+                                        </div>
+                                    ))}
+                                    <div className="mt-2 pt-2 border-t flex justify-between text-sm font-bold text-purple-700">
+                                        <span>{t('weightedFee')}</span>
+                                        <span>{(c.blendedFeePct || 0).toFixed(2)}%</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* NEW: Pricing Elasticity */}
+                            <div className="card border-blue-200">
+                                <div className="card-header bg-blue-50"><div className="card-title text-blue-800">{t('elasticityTitle')}</div></div>
+                                <div className="card-body p-3">
+                                    <div className="flex items-center justify-between mb-4">
+                                        <div className="text-xs text-slate-500">{t('elasticityCoef')}</div>
+                                        <input type="number" className="w-16 border rounded text-right font-bold text-blue-600" step="0.1" value={d.elasticityParams.coefficient} onChange={e=>upNew('elasticityParams', 'coefficient', e.target.value)}/>
+                                    </div>
+                                    <div className="text-[10px] text-slate-400 mb-3 text-center">{t('elasticityDesc')}</div>
+                                    
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full text-xs text-right">
+                                            <thead>
+                                                <tr className="bg-slate-100 text-slate-600">
+                                                    <th className="p-1 text-center">Change</th>
+                                                    <th className="p-1">{t('optPrice')}</th>
+                                                    <th className="p-1">{t('estVol')}</th>
+                                                    <th className="p-1">{t('estRev')}</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {c.elasticityData.map((row, i) => (
+                                                    <tr key={i} className={`border-b ${row.pct === '+0%' ? 'bg-blue-50 font-bold' : ''}`}>
+                                                        <td className="p-1 text-center">{row.pct}</td>
+                                                        <td className="p-1">{fmt(row.price)}</td>
+                                                        <td className="p-1">{fmt(row.vol)}</td>
+                                                        <td className={`p-1 ${row.rev > c.grossRev ? 'text-green-600' : 'text-slate-600'}`}>{fmt(row.rev)}</td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
                                     </div>
                                 </div>
                             </div>
@@ -1800,20 +2007,20 @@
                                         </div>
                                         <div className="text-center bg-indigo-50 rounded border border-indigo-100 p-1 col-span-1">
                                             <div className="text-[10px] text-indigo-800 uppercase font-bold">{t('targetRoas')}</div>
-                                            <div className="text-xl font-bold text-indigo-600">{c.funnelMetrics.roas.toFixed(2)}x</div>
+                                            <div className="text-xl font-bold text-indigo-600">{(c.funnelMetrics.roas || 0).toFixed(2)}x</div>
                                             <div className="text-[9px] text-indigo-400">{t('minRoasNote')}</div>
                                         </div>
                                         
                                         {/* NEW: Breakeven ROAS */}
                                         <div className="text-center bg-red-50 rounded border border-red-100 p-1 col-span-1">
                                             <div className="text-[10px] text-red-800 uppercase font-bold">{t('beRoas')}</div>
-                                            <div className="text-xl font-bold text-red-600">{c.funnelMetrics.beRoas.toFixed(2)}x</div>
+                                            <div className="text-xl font-bold text-red-600">{(c.funnelMetrics.beRoas || 0).toFixed(2)}x</div>
                                             <div className="text-[9px] text-red-400 truncate">{t('beRoasNote')}</div>
                                         </div>
 
                                          <div className="text-center col-span-1">
                                             <div className="text-[10px] text-slate-500 uppercase font-bold">{t('acos')}</div>
-                                            <div className="text-lg font-bold text-slate-600">{c.funnelMetrics.acos.toFixed(1)}%</div>
+                                            <div className="text-lg font-bold text-slate-600">{(c.funnelMetrics.acos || 0).toFixed(1)}%</div>
                                             <div className="text-[9px] text-slate-400">{t('acosNote')}</div>
                                         </div>
                                     </div>
@@ -1827,7 +2034,7 @@
                                         </div>
                                         <div>
                                             <div className="text-[10px] text-slate-400 uppercase font-bold">{t('maxCpc')}</div>
-                                            <div className="text-xl font-bold text-blue-600">{c.funnelMetrics.cpc.toFixed(2)} ฿</div>
+                                            <div className="text-xl font-bold text-blue-600">{(c.funnelMetrics.cpc || 0).toFixed(2)} ฿</div>
                                             <div className="text-[9px] text-slate-400">{t('maxCpcNote')}</div>
                                         </div>
                                     </div>
@@ -1891,8 +2098,40 @@
                                                 ))}
                                             </tbody>
                                         </table>
-                                        <div className="text-[9px] text-center mt-1 text-slate-400">*สีแดง = ขาดทุน (ต่ำกว่า Breakeven {c.funnelMetrics.beRoas.toFixed(1)}x)</div>
+                                        <div className="text-[9px] text-center mt-1 text-slate-400">*สีแดง = ขาดทุน (ต่ำกว่า Breakeven {(c.funnelMetrics.beRoas || 0).toFixed(1)}x)</div>
                                     </div>
+                                </div>
+                            </div>
+
+                            {/* NEW: Customer Lifetime Value (CLV) */}
+                            <div className="card mt-4 border-teal-200">
+                                <div className="card-header bg-teal-50"><div className="card-title text-teal-800">{t('clvTitle')}</div></div>
+                                <div className="card-body p-3">
+                                    <div className="grid grid-cols-2 gap-3 mb-3">
+                                        <div>
+                                            <label className="text-[10px] text-slate-500">{t('freqPerYear')}</label>
+                                            <input type="number" className="input-field text-center" value={d.clvParams.freq} onChange={e=>upNew('clvParams', 'freq', e.target.value)}/>
+                                        </div>
+                                        <div>
+                                            <label className="text-[10px] text-slate-500">{t('retentionRate')}</label>
+                                            <input type="number" className="input-field text-center" value={d.clvParams.retention} onChange={e=>upNew('clvParams', 'retention', e.target.value)}/>
+                                        </div>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-3 text-center mb-3">
+                                        <div className="p-2 border rounded bg-teal-50/50">
+                                            <div className="text-[9px] text-slate-400">{t('ltv1')}</div>
+                                            <div className="font-bold text-teal-700">{fmt(c.funnelMetrics.ltv1)} ฿</div>
+                                        </div>
+                                        <div className="p-2 border rounded bg-teal-50/50">
+                                            <div className="text-[9px] text-slate-400">{t('ltv3')}</div>
+                                            <div className="font-bold text-teal-700">{fmt(c.funnelMetrics.ltv3)} ฿</div>
+                                        </div>
+                                    </div>
+                                    <div className="flex justify-between items-center text-xs border-t pt-2">
+                                        <span className="font-bold text-slate-600">{t('ltvCacRatio')}</span>
+                                        <span className={`font-bold ${c.funnelMetrics.ltvCacRatio >= 3 ? 'text-green-600' : 'text-orange-500'}`}>{(c.funnelMetrics.ltvCacRatio || 0).toFixed(1)}x</span>
+                                    </div>
+                                    <div className="text-[9px] text-right text-slate-400 mt-1">{t('ltvDesc')}</div>
                                 </div>
                             </div>
 
@@ -2004,7 +2243,7 @@
                                     <div className={`p-4 rounded border-l-4 ${c.funnelMetrics.roas >= 5 ? 'bg-blue-50 border-blue-500' : (c.funnelMetrics.roas >= 3 ? 'bg-yellow-50 border-yellow-500' : 'bg-orange-50 border-orange-500')}`}>
                                         <div className="font-bold text-slate-700 flex items-center gap-2">
                                             <span className="text-lg">{c.funnelMetrics.roas >= 5 ? '🚀' : (c.funnelMetrics.roas >= 3 ? '⚠️' : '🔥')}</span>
-                                            ROAS = {c.funnelMetrics.roas.toFixed(2)}x
+                                            ROAS = {(c.funnelMetrics.roas || 0).toFixed(2)}x
                                         </div>
                                         <div className="text-sm text-slate-600 mt-2">
                                             <strong>{t('situation')}:</strong> {c.funnelMetrics.roas >= 5 ? t('roasHigh') : (c.funnelMetrics.roas >= 3 ? t('roasMed') : t('roasLow'))}
@@ -2041,7 +2280,7 @@
 
                                             {/* DSCR */}
                                             <div className="p-3 border rounded bg-white hover:shadow-sm">
-                                                <div className="flex justify-between text-xs text-slate-500 mb-1"><span>DSCR</span><span className={c.dscr >= 1.25 ? 'text-green-500 font-bold' : 'text-orange-500 font-bold'}>{c.dscr.toFixed(2)}x</span></div>
+                                                <div className="flex justify-between text-xs text-slate-500 mb-1"><span>DSCR</span><span className={c.dscr >= 1.25 ? 'text-green-500 font-bold' : 'text-orange-500 font-bold'}>{(c.dscr || 0).toFixed(2)}x</span></div>
                                                 <div className="text-[10px] text-slate-600">{c.dscr >= 1.25 ? t('dscrOk') : (c.dscr >= 1 ? t('dscrWarn') : t('dscrFail'))}</div>
                                             </div>
 
@@ -2065,7 +2304,7 @@
 
                                             {/* Margins */}
                                             <div className="p-3 border rounded bg-white hover:shadow-sm">
-                                                <div className="flex justify-between text-xs text-slate-500 mb-1"><span>Net Margin</span><span className={c.netMargin > 10 ? 'text-green-500 font-bold' : 'text-orange-500 font-bold'}>{c.netMargin.toFixed(1)}%</span></div>
+                                                <div className="flex justify-between text-xs text-slate-500 mb-1"><span>Net Margin</span><span className={c.netMargin > 10 ? 'text-green-500 font-bold' : 'text-orange-500 font-bold'}>{(c.netMargin || 0).toFixed(1)}%</span></div>
                                                 <div className="text-[10px] text-slate-600">{c.netMargin > 15 ? t('nmHigh') : (c.netMargin > 5 ? t('nmMed') : t('nmLow'))}</div>
                                             </div>
 
@@ -2097,7 +2336,7 @@
                                             
                                             {/* ACOS */}
                                             <div className="p-3 border rounded bg-indigo-50/50 hover:shadow-sm">
-                                                <div className="flex justify-between text-xs text-slate-500 mb-1"><span>ACOS</span><span className={c.funnelMetrics.acos < 20 ? 'text-green-600 font-bold' : 'text-red-600 font-bold'}>{c.funnelMetrics.acos.toFixed(1)}%</span></div>
+                                                <div className="flex justify-between text-xs text-slate-500 mb-1"><span>ACOS</span><span className={c.funnelMetrics.acos < 20 ? 'text-green-600 font-bold' : 'text-red-600 font-bold'}>{(c.funnelMetrics.acos || 0).toFixed(1)}%</span></div>
                                                 <div className="text-[10px] text-slate-600">{c.funnelMetrics.acos < 20 ? t('acosOk') : t('acosFail')}</div>
                                             </div>
 
@@ -2109,7 +2348,7 @@
 
                                             {/* CPC (Bid) */}
                                             <div className="p-3 border rounded bg-indigo-50/50 hover:shadow-sm">
-                                                <div className="flex justify-between text-xs text-slate-500 mb-1"><span>Max CPC</span><span className="text-blue-600 font-bold">{c.funnelMetrics.cpc.toFixed(2)} ฿</span></div>
+                                                <div className="flex justify-between text-xs text-slate-500 mb-1"><span>Max CPC</span><span className="text-blue-600 font-bold">{(c.funnelMetrics.cpc || 0).toFixed(2)} ฿</span></div>
                                                 <div className="text-[10px] text-slate-600">{t('bidCheck')}</div>
                                             </div>
 
@@ -2226,75 +2465,6 @@
                                             <div className="font-bold text-orange-600 mb-1">Variable Cost</div>
                                             <div className="text-slate-500 italic mb-1">Variable Expenses</div>
                                             <div className="whitespace-pre-line">{t('gVar')}</div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* NEW: Marketing & Ads Glossary Section */}
-                            <div className="card mt-6 border-indigo-200 shadow-sm">
-                                <div className="card-header bg-indigo-50"><div className="card-title text-indigo-800 text-sm">{t('marketingGlossary')}</div></div>
-                                <div className="card-body">
-                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-xs text-slate-600">
-                                        <div className="p-2 border rounded hover:bg-indigo-50">
-                                            <div className="font-bold text-indigo-700 mb-1">ROAS</div>
-                                            <div className="text-slate-500 italic mb-1">Return on Ad Spend</div>
-                                            <div className="whitespace-pre-line">{t('gRoas')}</div>
-                                        </div>
-                                        <div className="p-2 border rounded hover:bg-indigo-50">
-                                            <div className="font-bold text-pink-700 mb-1">ACOS</div>
-                                            <div className="text-slate-500 italic mb-1">Advertising Cost of Sales</div>
-                                            <div className="whitespace-pre-line">{t('gAcos')}</div>
-                                        </div>
-                                        <div className="p-2 border rounded hover:bg-indigo-50">
-                                            <div className="font-bold text-blue-700 mb-1">CPA</div>
-                                            <div className="text-slate-500 italic mb-1">Cost Per Acquisition / Action</div>
-                                            <div className="whitespace-pre-line">{t('gCpa')}</div>
-                                        </div>
-                                        <div className="p-2 border rounded hover:bg-indigo-50">
-                                            <div className="font-bold text-orange-700 mb-1">CPC</div>
-                                            <div className="text-slate-500 italic mb-1">Cost Per Click</div>
-                                            <div className="whitespace-pre-line">{t('gCpc')}</div>
-                                        </div>
-                                        <div className="p-2 border rounded hover:bg-indigo-50">
-                                            <div className="font-bold text-teal-700 mb-1">CTR</div>
-                                            <div className="text-slate-500 italic mb-1">Click-Through Rate</div>
-                                            <div className="whitespace-pre-line">{t('gCtr')}</div>
-                                        </div>
-                                        <div className="p-2 border rounded hover:bg-indigo-50">
-                                            <div className="font-bold text-purple-700 mb-1">CVR</div>
-                                            <div className="text-slate-500 italic mb-1">Conversion Rate</div>
-                                            <div className="whitespace-pre-line">{t('gCvr')}</div>
-                                        </div>
-                                        <div className="p-2 border rounded hover:bg-indigo-50">
-                                            <div className="font-bold text-sky-700 mb-1">CPM</div>
-                                            <div className="text-slate-500 italic mb-1">Cost Per Mille (1,000 Impressions)</div>
-                                            <div className="whitespace-pre-line">{t('gCpm')}</div>
-                                        </div>
-                                        <div className="p-2 border rounded hover:bg-indigo-50">
-                                            <div className="font-bold text-green-700 mb-1">GMV</div>
-                                            <div className="text-slate-500 italic mb-1">Gross Merchandise Value</div>
-                                            <div className="whitespace-pre-line">{t('gGmv')}</div>
-                                        </div>
-                                        <div className="p-2 border rounded hover:bg-indigo-50">
-                                            <div className="font-bold text-red-700 mb-1">Impression</div>
-                                            <div className="text-slate-500 italic mb-1">Ad Views</div>
-                                            <div className="whitespace-pre-line">{t('gImp')}</div>
-                                        </div>
-                                        <div className="p-2 border rounded hover:bg-indigo-50">
-                                            <div className="font-bold text-indigo-600 mb-1">Basket Size / AOV</div>
-                                            <div className="text-slate-500 italic mb-1">Average Order Value</div>
-                                            <div className="whitespace-pre-line">{t('gAov')}</div>
-                                        </div>
-                                        <div className="p-2 border rounded hover:bg-indigo-50">
-                                            <div className="font-bold text-slate-700 mb-1">Affiliate</div>
-                                            <div className="text-slate-500 italic mb-1">Commission Base</div>
-                                            <div className="whitespace-pre-line">{t('gAff')}</div>
-                                        </div>
-                                        <div className="p-2 border rounded hover:bg-indigo-50">
-                                            <div className="font-bold text-slate-700 mb-1">Reach</div>
-                                            <div className="text-slate-500 italic mb-1">Unique Users</div>
-                                            <div className="whitespace-pre-line">{t('gReach')}</div>
                                         </div>
                                     </div>
                                 </div>
