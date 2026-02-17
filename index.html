@@ -259,6 +259,13 @@
                 financialGlossary: "📚 คำอธิบายตัวย่อทางการเงิน (Financial Glossary)",
                 marketingGlossary: "📢 คำอธิบายตัวย่อทางการตลาด & โฆษณา (Marketing & Ads Glossary)",
                 
+                // --- Additional Translations ---
+                beRoas: "Breakeven ROAS (จุดคุ้มทุน)",
+                beRoasNote: "ห้ามต่ำกว่านี้ (กำไร = 0)",
+                spreadAnalysis: "⚠️ Sensitivity (Spread: Cost vs Price)",
+                paddyLabel: "Paddy (Rice Cost)",
+                priceLabel: "Selling Price",
+
                 // --- Cash Flow Summary (Below Table) ---
                 wcStart: "เงินสดเริ่มต้น (Working Cap)",
                 lowestCash: "จุดเงินสดต่ำสุด (Lowest)",
@@ -529,6 +536,53 @@
                 adsPerformance: "📢 深入广告绩效 (Ads Performance)",
                 financialGlossary: "📚 财务缩略语解释 (Financial Glossary)",
                 marketingGlossary: "📢 营销与广告缩略语解释 (Marketing & Ads Glossary)",
+
+                // --- Additional Translations ---
+                beRoas: "盈亏平衡 ROAS (Breakeven)",
+                beRoasNote: "不得低于此值 (利润 = 0)",
+                spreadAnalysis: "⚠️ 敏感性分析 (价差: 成本 vs 售价)",
+                paddyLabel: "稻谷成本 (Paddy)",
+                priceLabel: "售价 (Price)",
+
+                // --- Cash Flow Summary (Below Table) ---
+                wcStart: "初始资金 (Working Cap)",
+                lowestCash: "最低现金点 (Lowest)",
+                debtService: "偿还本金+利息",
+                taxPaidCash: "实缴税款 (Cash Paid)",
+                netProfitAcc: "会计净利润 (Net Profit)",
+                netProfitDesc: "(收入 - 支出 - 折旧 - 利息 - 税)",
+                cashEndYear: "年末现金余额 (Cash Balance)",
+                cashEndDesc: "(初始资金 + 实际现金流 - 税 - 债务)",
+
+                // --- Cash Flow Table Headers ---
+                cfSales: "销售额 (预订)",
+                cfInflow: "实际现金流入",
+                cfExp: "现金支出",
+                cfVat: "增值税净额",
+                cfOpCash: "运营现金 (EBITDA)",
+                cfBalance: "现金余额",
+                start0: "0 (初始)",
+
+                // --- 5-Year Projection Headers ---
+                pyYear: "年份",
+                pyRev: "总收入",
+                pyExp: "运营支出 (现金)",
+                pyEbitda: "EBITDA",
+                pyDep: "折旧",
+                pyTax: "所得税",
+                pyNet: "净利润",
+                pyDiv: "分红",
+                pyCashEnd: "期末现金",
+
+                // --- Items (By-products & Campaigns) ---
+                prod_husk: "稻壳",
+                prod_fine: "细糠",
+                prod_rough: "粗糠",
+                prod_broken: "碎米",
+                prod_waste: "废料",
+                camp_gold1: "赢取黄金 1 钱",
+                camp_gold2: "赢取黄金 0.5 钱",
+                camp_free: "免费大米 1 年",
 
                 // AI Builders
                 meaning: "含义",
@@ -873,6 +927,11 @@
                 const roas = totalMarketingBudget > 0 ? riceRev / totalMarketingBudget : 0;
                 const acos = riceRev > 0 ? (totalMarketingBudget / riceRev) * 100 : 0;
 
+                // Breakeven ROAS Calculation
+                const varCostPerUnit = matCostUnit + (data.varParams.elecRate * (5 / (data.yield/100)) / 1000) + (data.price * data.varParams.platformPercent/100);
+                const marginPerUnit = data.price - varCostPerUnit;
+                const beRoasVal = marginPerUnit > 0 ? data.price / marginPerUnit : 999;
+
                 const funnelMetrics = {
                     budget: totalMarketingBudget,
                     orders: totalOrders,
@@ -883,7 +942,8 @@
                     cpm: impliedCPM,
                     roas: roas, 
                     acos: acos, 
-                    gmv: riceRev 
+                    gmv: riceRev,
+                    beRoas: beRoasVal // New
                 };
 
                 const accruedRev = [];
@@ -1103,6 +1163,30 @@
                         tData.paddyPrice = Math.round(d.paddyPrice * pStep);
                         const financials = calculateFinancials(tData);
                         row.push({ vLabel: `${(vStep*100-100).toFixed(0)}%`, pLabel: `${(pStep*100-100).toFixed(0)}%`, profit: financials.netProfit });
+                    });
+                    results.push(row);
+                });
+                return results;
+            }, [d]);
+
+            // NEW: Spread Sensitivity (Paddy Price vs Selling Price)
+            const spreadData = useMemo(() => {
+                const results = [];
+                const paddySteps = [0.9, 1.0, 1.1]; // Row: Paddy Cost -10%, Base, +10%
+                const sellPriceSteps = [0.9, 1.0, 1.1]; // Col: Sell Price -10%, Base, +10%
+                
+                paddySteps.forEach(costStep => {
+                    const row = [];
+                    sellPriceSteps.forEach(priceStep => {
+                        const tData = JSON.parse(JSON.stringify(d));
+                        tData.paddyPrice = Math.round(d.paddyPrice * costStep);
+                        tData.price = Math.round(d.price * priceStep);
+                        const financials = calculateFinancials(tData);
+                        row.push({ 
+                            cLabel: `${(costStep*100-100).toFixed(0)}%`, 
+                            pLabel: `${(priceStep*100-100).toFixed(0)}%`, 
+                            profit: financials.netProfit 
+                        });
                     });
                     results.push(row);
                 });
@@ -1543,23 +1627,59 @@
                                 </div>
                             </div>
 
+                            {/* Spread Sensitivity */}
+                            <div className="card mt-4">
+                                <div className="card-header"><div className="card-title text-sm">{t('spreadAnalysis')}</div></div>
+                                <div className="card-body p-2">
+                                    <div className="text-[10px] text-center mb-1 text-slate-400">Y: {t('paddyLabel')} | X: {t('priceLabel')}</div>
+                                    <table className="w-full matrix-table">
+                                        <thead>
+                                            <tr>
+                                                <th className="bg-slate-100">Cost \ Price</th>
+                                                <th className="matrix-header">-10%</th>
+                                                <th className="matrix-header">Base</th>
+                                                <th className="matrix-header">+10%</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {spreadData.map((row, rI) => (
+                                                <tr key={rI}>
+                                                    <td className="matrix-header">{row[0].cLabel}</td>
+                                                    {row.map((cell, cI) => (
+                                                        <td key={cI} className={`font-bold ${getHeatmapColor(cell.profit)}`}>{fmt(cell.profit/1000)}k</td>
+                                                    ))}
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
                             {/* Marketing Funnel & Budget Allocation */}
                             <div className="card mt-4 border-indigo-200">
                                 <div className="card-header bg-indigo-50"><div className="card-title text-indigo-800">{t('tiktokAdsTitle')}</div></div>
                                 <div className="card-body p-3">
                                     {/* Top Row: Budget & ROAS (The most important for GMV Max) */}
-                                    <div className="grid grid-cols-3 gap-4 mb-4 border-b border-indigo-100 pb-3">
-                                        <div className="text-center">
+                                    <div className="grid grid-cols-4 gap-2 mb-4 border-b border-indigo-100 pb-3">
+                                        <div className="text-center col-span-1">
                                             <div className="text-[10px] text-slate-500 uppercase font-bold">{t('totalBudget')}</div>
                                             <div className="text-lg font-bold text-indigo-700">{fmt(c.funnelMetrics.budget)}</div>
                                             <div className="text-[9px] text-slate-400">{t('budgetNote')}</div>
                                         </div>
-                                        <div className="text-center bg-indigo-50 rounded border border-indigo-100 p-1">
+                                        <div className="text-center bg-indigo-50 rounded border border-indigo-100 p-1 col-span-1">
                                             <div className="text-[10px] text-indigo-800 uppercase font-bold">{t('targetRoas')}</div>
-                                            <div className="text-2xl font-bold text-indigo-600">{c.funnelMetrics.roas.toFixed(2)}x</div>
+                                            <div className="text-xl font-bold text-indigo-600">{c.funnelMetrics.roas.toFixed(2)}x</div>
                                             <div className="text-[9px] text-indigo-400">{t('minRoasNote')}</div>
                                         </div>
-                                         <div className="text-center">
+                                        
+                                        {/* NEW: Breakeven ROAS */}
+                                        <div className="text-center bg-red-50 rounded border border-red-100 p-1 col-span-1">
+                                            <div className="text-[10px] text-red-800 uppercase font-bold">{t('beRoas')}</div>
+                                            <div className="text-xl font-bold text-red-600">{c.funnelMetrics.beRoas.toFixed(2)}x</div>
+                                            <div className="text-[9px] text-red-400 truncate">{t('beRoasNote')}</div>
+                                        </div>
+
+                                         <div className="text-center col-span-1">
                                             <div className="text-[10px] text-slate-500 uppercase font-bold">{t('acos')}</div>
                                             <div className="text-lg font-bold text-slate-600">{c.funnelMetrics.acos.toFixed(1)}%</div>
                                             <div className="text-[9px] text-slate-400">{t('acosNote')}</div>
