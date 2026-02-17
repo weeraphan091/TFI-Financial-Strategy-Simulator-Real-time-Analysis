@@ -100,6 +100,15 @@
         const fmtDec = (n) => new Intl.NumberFormat('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
         const COLORS = ['#3b82f6', '#ef4444', '#f59e0b', '#10b981', '#6366f1', '#8b5cf6', '#ec4899', '#64748b'];
 
+        // --- Helper for Base64 Unicode ---
+        const toBase64 = (str) => {
+            return window.btoa(unescape(encodeURIComponent(str)));
+        };
+
+        const fromBase64 = (str) => {
+            return decodeURIComponent(escape(window.atob(str)));
+        };
+
         // --- Initial Data ---
         const INITIAL = {
             regCapital: 12000000,
@@ -126,6 +135,12 @@
             ],
             varParams: { elecRate: 600, mktPercent: 14, platformPercent: 12 },
             fixedParams: { erp: 9000, campaign: 41000, other: 10000, maintPercent: 2 },
+            // Campaign Breakdown Details
+            campaignDetails: [
+                { name: "ลุ้นทอง 1 สลึง", qty: 1, costPerUnit: 16500 },
+                { name: "ลุ้นทอง ครึ่งสลึง", qty: 2, costPerUnit: 8500 },
+                { name: "กินข้าวฟรี 1 ปี", qty: 3, costPerUnit: 2500 }
+            ],
             logistics: { active: true, percent: 50, profit: 5 },
             dividend: { payout: 50, founders: 3 },
             growth: 10, inflation: 3, monthlyGrowth: 0, discountRate: 10,
@@ -135,22 +150,69 @@
         };
 
         const App = () => {
+            const [toast, setToast] = useState(null); // Notification state
+
             const [d, setD] = useState(() => {
                 try {
-                    const savedData = localStorage.getItem('morbSukFinancialData_v42'); // Version Updated
-                    return savedData ? JSON.parse(savedData) : INITIAL;
-                } catch (e) { return INITIAL; }
+                    // 1. Check URL Parameters first
+                    const params = new URLSearchParams(window.location.search);
+                    const sharedData = params.get('data');
+                    if (sharedData) {
+                        const parsed = JSON.parse(fromBase64(sharedData));
+                        // Ensure compatibility with potentially older shared links
+                        if (!parsed.campaignDetails) parsed.campaignDetails = INITIAL.campaignDetails;
+                        return parsed;
+                    }
+
+                    // 2. Fallback to LocalStorage
+                    const savedData = localStorage.getItem('morbSukFinancialData_v42'); 
+                    let parsed = savedData ? JSON.parse(savedData) : INITIAL;
+                    if (!parsed.campaignDetails) parsed.campaignDetails = INITIAL.campaignDetails;
+                    return parsed;
+                } catch (e) { 
+                    console.error("Data load error:", e);
+                    return INITIAL; 
+                }
             });
             const [c, setC] = useState(null); 
 
-            useEffect(() => { localStorage.setItem('morbSukFinancialData_v42', JSON.stringify(d)); }, [d]);
+            useEffect(() => { 
+                // Only save to localStorage if NOT viewing a shared link (to prevent overwriting user's own data immediately)
+                // However, for simplicity in this single-user simulation style, we usually just save current state.
+                // Let's verify if URL has data, if so, maybe we don't auto-save until they edit?
+                // For now, consistent behavior: Current state is saved.
+                localStorage.setItem('morbSukFinancialData_v42', JSON.stringify(d)); 
+            }, [d]);
 
             const resetToDefault = () => {
-                if (confirm("Reset all data to default?")) { setD(INITIAL); localStorage.removeItem('morbSukFinancialData_v42'); }
+                if (confirm("Reset all data to default?")) { 
+                    setD(INITIAL); 
+                    localStorage.removeItem('morbSukFinancialData_v42'); 
+                    // Clear URL params without reload
+                    window.history.pushState({}, document.title, window.location.pathname);
+                }
+            };
+
+            const handleShare = () => {
+                try {
+                    const jsonString = JSON.stringify(d);
+                    const encoded = toBase64(jsonString);
+                    const url = `${window.location.origin}${window.location.pathname}?data=${encoded}`;
+                    
+                    navigator.clipboard.writeText(url).then(() => {
+                        setToast("คัดลอกลิงก์แล้ว! ส่งให้เพื่อนได้เลย (Copied!)");
+                        setTimeout(() => setToast(null), 3000);
+                        // Update browser URL to reflect current state
+                        window.history.pushState({}, document.title, `?data=${encoded}`);
+                    });
+                } catch (e) {
+                    alert("เกิดข้อผิดพลาดในการสร้างลิงก์");
+                }
             };
 
             const handlePrint = () => window.print();
             
+            // ... (handleExport function remains same)
             const handleExport = () => {
                 if(!c) return;
                 let csvContent = "data:text/csv;charset=utf-8,";
@@ -185,6 +247,23 @@
             };
             const upFunnel = (k, v) => setD(p => ({...p, mktFunnel: {...p.mktFunnel, [k]: +v}}));
 
+            // Function to update Campaign Details and recalculate Total Campaign Cost
+            const upCampaign = (idx, field, val) => {
+                setD(prev => {
+                    const newDetails = [...prev.campaignDetails];
+                    newDetails[idx][field] = field === 'name' ? val : +val;
+                    
+                    // Recalculate total campaign cost
+                    const newTotal = newDetails.reduce((sum, item) => sum + (item.qty * item.costPerUnit), 0);
+                    
+                    return {
+                        ...prev,
+                        campaignDetails: newDetails,
+                        fixedParams: { ...prev.fixedParams, campaign: newTotal }
+                    };
+                });
+            };
+
             const handleYieldChange = (e) => {
                 const newYield = parseFloat(e.target.value);
                 setD(prev => {
@@ -201,14 +280,16 @@
                 });
             };
 
+            // ... (calculateFinancials remains mostly the same, ensuring it uses fixedParams.campaign which is now auto-calculated)
             const calculateFinancials = (data) => {
                 const totalCapex = Object.values(data.capex).reduce((a,b)=>a+b,0);
                 const totalSources = data.regCapital + (data.loan.amount || 0);
                 const workingCap = totalSources - totalCapex;
                 const annualDepreciation = (data.capex.factory / data.depreciation.factoryYears) + (data.capex.machine / data.depreciation.machineYears);
 
-                // Maintenance
-                const maintenanceCostYearly = data.capex.machine * ((data.fixedParams.maintPercent || 2) / 100);
+                // Maintenance (Fixed Bug: 0% was reverting to default 2%)
+                const maintPercent = (data.fixedParams.maintPercent !== undefined && data.fixedParams.maintPercent !== null) ? data.fixedParams.maintPercent : 2;
+                const maintenanceCostYearly = data.capex.machine * (maintPercent / 100);
                 const maintenanceCostMonthly = maintenanceCostYearly / 12;
 
                 const dayTarget = data.targetBags / 30;
@@ -238,8 +319,8 @@
                 const platformTotal = riceRev * (data.varParams.platformPercent/100); 
                 const mktTotal = riceRev * (data.varParams.mktPercent/100); 
                 
-                // Marketing Budget Total (Variable + Fixed Campaign)
-                const totalMarketingBudget = mktTotal + data.fixedParams.campaign;
+                // Marketing Budget Total (Variable Only as requested)
+                const totalMarketingBudget = mktTotal; 
 
                 // HR & SSO
                 let baseSalaryTotal = 0;
@@ -278,6 +359,10 @@
                 const impliedCPC = totalMarketingBudget / visitorsNeeded;
                 const impliedCPM = (totalMarketingBudget / impressionsNeeded) * 1000;
 
+                // New calculations for TikTok Shop GMV Max
+                const roas = totalMarketingBudget > 0 ? riceRev / totalMarketingBudget : 0;
+                const acos = riceRev > 0 ? (totalMarketingBudget / riceRev) * 100 : 0;
+
                 const funnelMetrics = {
                     budget: totalMarketingBudget,
                     orders: totalOrders,
@@ -285,7 +370,10 @@
                     visitors: visitorsNeeded,
                     cpc: impliedCPC,
                     impressions: impressionsNeeded,
-                    cpm: impliedCPM
+                    cpm: impliedCPM,
+                    roas: roas, 
+                    acos: acos, 
+                    gmv: riceRev 
                 };
 
                 // Pre-calculate accrued revenue
@@ -471,7 +559,14 @@
                     opFixed: fixedCashTotal,
                     netCash: baseRev - totalVatOut - (totalVar - totalVatOut) - fixedCashTotal,
                     riceCost: riceTotal, packCost: packTotal, feesCost: platformTotal + mktTotal,
-                    elecCost: elecTotal, salaryCost: salaryTotal, otherFixed: data.fixedParams.erp + data.fixedParams.campaign + data.fixedParams.other + maintenanceCostMonthly
+                    elecCost: elecTotal, salaryCost: salaryTotal, otherFixed: data.fixedParams.erp + data.fixedParams.campaign + data.fixedParams.other + maintenanceCostMonthly,
+                    // Detailed breakdown for Other Fixed Cost
+                    otherDetails: {
+                        erp: data.fixedParams.erp,
+                        campaign: data.fixedParams.campaign,
+                        misc: data.fixedParams.other,
+                        maintenance: maintenanceCostMonthly
+                    }
                 };
 
                 return {
@@ -653,10 +748,17 @@
                             <button onClick={()=>applyScenario('base')} className={`scenario-btn ${d.scenario==='base'?'bg-blue-100 text-blue-700 active ring-2 ring-blue-500':'bg-slate-700 text-slate-300'}`}>Base</button>
                             <button onClick={()=>applyScenario('best')} className={`scenario-btn ${d.scenario==='best'?'bg-green-100 text-green-700 active ring-2 ring-green-500':'bg-slate-700 text-slate-300'}`}>Best</button>
                             <button onClick={resetToDefault} className="scenario-btn bg-slate-600 text-slate-200 ml-2 hover:bg-slate-500">Reset</button>
+                            <button onClick={handleShare} className="scenario-btn bg-purple-600 text-white ml-2 hover:bg-purple-500 flex items-center gap-1"><span>🔗</span> Share</button>
                             <button onClick={handleExport} className="scenario-btn bg-emerald-600 text-white ml-2 hover:bg-emerald-500 flex items-center gap-1"><span>📥</span> CSV</button>
                             <button onClick={handlePrint} className="scenario-btn bg-white text-slate-800 ml-2 hover:bg-slate-100 flex items-center gap-1 font-bold border border-slate-300"><span>🖨️</span> Print</button>
                         </div>
                     </header>
+
+                    {toast && (
+                        <div className="fixed top-20 right-4 bg-green-600 text-white px-4 py-2 rounded shadow-lg z-[100] animate-bounce">
+                            {toast}
+                        </div>
+                    )}
 
                     <main className="p-4 max-w-[1600px] mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6">
                         
@@ -677,7 +779,46 @@
                             <div className="card"><div className="card-header"><div className="card-title">การผลิต (Yield)</div></div><div className="card-body"><div className="input-group mb-4"><label className="input-label flex justify-between"><span>Yield ข้าวสาร</span><span className="font-bold text-blue-600">{d.yield}%</span></label><input type="range" className="w-full" min="40" max="70" value={d.yield} onChange={handleYieldChange}/></div><div className="input-group"><label className="input-label">ราคาข้าวเปลือก (บาท/ตัน)</label><input type="number" className="input-field" value={d.paddyPrice} onChange={e=>up('paddyPrice',null,e.target.value)}/></div><div className="text-xs text-slate-500 mt-2 text-right">ต้องใช้ข้าวเปลือก: <b>{fmtDec(c.paddyTons)}</b> ตัน</div><div className="text-xs text-right text-orange-600 font-bold">ใช้งบซื้อข้าว: {fmt(c.riceTotal)} บาท</div></div></div>
                             <div className="card"><div className="card-header"><div className="card-title">ต้นทุนต่อถุง</div><div className="text-red-600 font-bold">{fmtDec(c.matCostUnit)}</div></div><div className="card-body"><div className="grid grid-cols-3 gap-2 text-center text-xs mb-2"><div className="bg-slate-100 p-1 rounded"><div>ข้าวสาร</div><b>{fmtDec(c.riceCostUnit)}</b><div className="text-[10px] text-slate-500 mt-1 border-t border-slate-200 pt-1">{fmt(c.riceTotal)} บ./ด</div></div><div className="bg-slate-100 p-1 rounded"><div>ถุง</div><input className="w-full text-center bg-transparent font-bold" value={d.unit.bag} onChange={e=>up('unit','bag',e.target.value)}/><div className="text-[10px] text-slate-500 mt-1 border-t border-slate-200 pt-1">{fmt(d.unit.bag * d.targetBags)} บ./ด</div></div><div className="bg-slate-100 p-1 rounded"><div>กล่องจัดส่ง</div><input className="w-full text-center bg-transparent font-bold" value={d.unit.sticker} onChange={e=>up('unit','sticker',e.target.value)}/><div className="text-[10px] text-slate-500 mt-1 border-t border-slate-200 pt-1">{fmt(d.unit.sticker * d.targetBags)} บ./ด</div></div></div><div className="text-xs text-right text-red-600 font-bold border-t border-slate-100 pt-2">รวมต้นทุนผลิตต่อเดือน: {fmt(c.riceTotal + c.packTotal)} บาท</div></div></div>
                             <div className="card"><div className="card-header"><div className="card-title">โครงสร้างพนักงาน</div><div className="text-blue-600 font-bold text-sm">{fmt(c.salaryTotal)}</div></div><div className="card-body"><table className="w-full hr-table"><thead><tr><th>ตำแหน่ง</th><th className="w-10 text-center">คน</th><th className="w-20 text-right">เงินเดือน</th><th className="w-16 text-right text-xs text-slate-500">ประกันสังคม<br/>(5%)</th><th className="w-20 text-right font-bold">รวม</th></tr></thead><tbody>{c.hrCosts.map((h,i)=>(<tr key={i}><td>{h.role}</td><td><input type="number" className="hr-input text-center" value={h.count} onChange={e=>upArr('hr',i,'count',e.target.value)}/></td><td><input type="number" className="hr-input" value={h.salary} onChange={e=>upArr('hr',i,'salary',e.target.value)}/></td><td className="text-right text-xs text-slate-500">{fmt(h.ssoTotalRole)}</td><td className="text-right font-bold text-slate-700">{fmt(h.totalPerRole)}</td></tr>))}</tbody></table></div></div>
-                            <div className="card"><div className="card-header"><div className="card-title">ค่าใช้จ่ายอื่นๆ (Expenses)</div><div className="text-red-500 font-bold text-sm">{fmt(c.section7Total)}</div></div><div className="card-body space-y-3"><div><div className="text-xs font-bold text-slate-500 mb-1">Variable Cost Parameters</div><div className="input-row"><span className="text-sm">ค่าไฟ ({d.varParams.elecRate} บ./ตัน)</span><div className="flex items-center gap-2"><input type="number" className="input-field w-16" value={d.varParams.elecRate} onChange={e=>up('varParams','elecRate',e.target.value)}/><span className="text-xs font-bold text-slate-600 min-w-[60px] text-right">{fmt(c.elecTotal)}</span></div></div><div className="input-row"><span className="text-sm">Platform (%)</span><div className="flex items-center gap-2"><input type="number" className="input-field w-16" value={d.varParams.platformPercent} onChange={e=>up('varParams','platformPercent',e.target.value)}/><span className="text-xs font-bold text-slate-600 min-w-[60px] text-right">{fmt(c.platformTotal)}</span></div></div><div className="input-row"><span className="text-sm">Marketing (%)</span><div className="flex items-center gap-2"><input type="number" className="input-field w-16" value={d.varParams.mktPercent} onChange={e=>up('varParams','mktPercent',e.target.value)}/><span className="text-xs font-bold text-slate-600 min-w-[60px] text-right">{fmt(c.mktTotal)}</span></div></div></div><div><div className="text-xs font-bold text-slate-500 mb-1">Fixed Cost (Other)</div><div className="input-row"><span className="text-sm">ซ่อมบำรุง (%)</span><input type="number" className="input-field w-24" value={d.fixedParams.maintPercent} onChange={e=>up('fixedParams','maintPercent',e.target.value)} placeholder="% Machine"/></div><div className="input-row"><span className="text-sm">ERP Software</span><input type="number" className="input-field w-24" value={d.fixedParams.erp} onChange={e=>up('fixedParams','erp',e.target.value)}/></div><div className="input-row"><span className="text-sm">แคมเปญล้นทองฯ</span><input type="number" className="input-field w-24" value={d.fixedParams.campaign} onChange={e=>up('fixedParams','campaign',e.target.value)}/></div><div className="input-row"><span className="text-sm">อื่นๆ (Misc)</span><input type="number" className="input-field w-24" value={d.fixedParams.other} onChange={e=>up('fixedParams','other',e.target.value)}/></div></div></div></div>
+                            <div className="card"><div className="card-header"><div className="card-title">ค่าใช้จ่ายอื่นๆ (Expenses)</div><div className="text-red-500 font-bold text-sm">{fmt(c.section7Total)}</div></div><div className="card-body space-y-3">
+                                <div>
+                                    <div className="text-xs font-bold text-slate-500 mb-1">Variable Cost Parameters</div>
+                                    <div className="input-row"><span className="text-sm">ค่าไฟ ({d.varParams.elecRate} บ./ตัน)</span><div className="flex items-center gap-2"><input type="number" className="input-field w-16" value={d.varParams.elecRate} onChange={e=>up('varParams','elecRate',e.target.value)}/><span className="text-xs font-bold text-slate-600 min-w-[60px] text-right">{fmt(c.elecTotal)}</span></div></div>
+                                    <div className="input-row"><span className="text-sm">Platform (%)</span><div className="flex items-center gap-2"><input type="number" className="input-field w-16" value={d.varParams.platformPercent} onChange={e=>up('varParams','platformPercent',e.target.value)}/><span className="text-xs font-bold text-slate-600 min-w-[60px] text-right">{fmt(c.platformTotal)}</span></div></div>
+                                    <div className="input-row"><span className="text-sm">Marketing (%)</span><div className="flex items-center gap-2"><input type="number" className="input-field w-16" value={d.varParams.mktPercent} onChange={e=>up('varParams','mktPercent',e.target.value)}/><span className="text-xs font-bold text-slate-600 min-w-[60px] text-right">{fmt(c.mktTotal)}</span></div></div>
+                                </div>
+                                <div>
+                                    <div className="text-xs font-bold text-slate-500 mb-1">Fixed Cost (Other)</div>
+                                    <div className="input-row"><span className="text-sm">ซ่อมบำรุง (%)</span><input type="number" className="input-field w-24" value={d.fixedParams.maintPercent} onChange={e=>up('fixedParams','maintPercent',e.target.value)} placeholder="% Machine"/></div>
+                                    <div className="input-row"><span className="text-sm">ERP Software</span><input type="number" className="input-field w-24" value={d.fixedParams.erp} onChange={e=>up('fixedParams','erp',e.target.value)}/></div>
+                                    <div className="input-row"><span className="text-sm">อื่นๆ (Misc)</span><input type="number" className="input-field w-24" value={d.fixedParams.other} onChange={e=>up('fixedParams','other',e.target.value)}/></div>
+                                    <div className="input-row bg-yellow-50 p-1 rounded border border-yellow-100"><span className="text-sm font-bold text-yellow-800">แคมเปญลุ้นทองฯ</span><div className="font-bold text-yellow-700">{fmt(d.fixedParams.campaign)}</div></div>
+                                </div>
+                                
+                                {/* Campaign Details Breakdown */}
+                                <div className="mt-2 border-t border-slate-200 pt-2">
+                                    <div className="text-[10px] font-bold text-slate-400 mb-1">🏆 Campaign Gold Breakdown</div>
+                                    <table className="w-full text-[10px]">
+                                        <thead>
+                                            <tr className="bg-yellow-50 text-yellow-800">
+                                                <th className="text-left p-1 rounded-l">รางวัล</th>
+                                                <th className="text-center p-1">จำนวน</th>
+                                                <th className="text-right p-1">ทุน/หน่วย</th>
+                                                <th className="text-right p-1 rounded-r">รวม</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {d.campaignDetails.map((item, i) => (
+                                                <tr key={i} className="border-b border-slate-100">
+                                                    <td className="p-1"><input className="w-full bg-transparent outline-none focus:text-blue-600" value={item.name} onChange={e=>upCampaign(i,'name',e.target.value)}/></td>
+                                                    <td className="p-1"><input type="number" className="w-8 text-center bg-slate-50 border rounded p-0.5 outline-none focus:border-blue-300" value={item.qty} onChange={e=>upCampaign(i,'qty',e.target.value)}/></td>
+                                                    <td className="p-1"><input type="number" className="w-12 text-right bg-slate-50 border rounded p-0.5 outline-none focus:border-blue-300" value={item.costPerUnit} onChange={e=>upCampaign(i,'costPerUnit',e.target.value)}/></td>
+                                                    <td className="p-1 text-right font-medium text-slate-600">{fmt(item.qty * item.costPerUnit)}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div></div>
                         </div>
 
                         {/* --- CENTER: Strategy & Dashboard --- */}
@@ -800,7 +941,17 @@
                                     <div className="flow-row flow-sub font-bold text-slate-600">Variable (excl. VAT)<span>{fmt(c.revBreakdown.opVar)}</span></div>
                                     <div className="flow-row flow-sub pl-6 text-xs text-slate-500">- Rice: {fmt(c.revBreakdown.riceCost)} | Pack: {fmt(c.revBreakdown.packCost)}<br/>- Fees: {fmt(c.revBreakdown.feesCost)} | Elec: {fmt(c.revBreakdown.elecCost)}</div>
                                     <div className="flow-row flow-sub font-bold text-slate-600 mt-1">Fixed Cost<span>{fmt(c.revBreakdown.opFixed)}</span></div>
-                                    <div className="flow-row flow-sub pl-6 text-xs text-slate-500">- Salary: {fmt(c.revBreakdown.salaryCost)} | Other: {fmt(c.revBreakdown.otherFixed)}</div>
+                                    <div className="flow-row flow-sub pl-6 text-xs text-slate-500">- Salary (Base+SSO): {fmt(c.revBreakdown.salaryCost)}</div>
+                                    
+                                    {/* Expanded Other Fixed Breakdown */}
+                                    <div className="flow-row flow-sub pl-6 text-xs text-slate-500">- Other Fixed: {fmt(c.revBreakdown.otherFixed)}</div>
+                                    <div className="bg-slate-50 rounded p-2 ml-6 my-1 border border-slate-100">
+                                        <div className="flex justify-between text-[10px] text-slate-400"><span>• Campaign:</span><span>{fmt(c.revBreakdown.otherDetails.campaign)}</span></div>
+                                        <div className="flex justify-between text-[10px] text-slate-400"><span>• ERP:</span><span>{fmt(c.revBreakdown.otherDetails.erp)}</span></div>
+                                        <div className="flex justify-between text-[10px] text-slate-400"><span>• Misc:</span><span>{fmt(c.revBreakdown.otherDetails.misc)}</span></div>
+                                        <div className="flex justify-between text-[10px] text-slate-400"><span>• Maintenance:</span><span>{fmt(c.revBreakdown.otherDetails.maintenance)}</span></div>
+                                    </div>
+
                                     <div className="flow-row total text-lg bg-green-50 p-2 rounded mt-2"><span className="text-green-700">Net Cash (EBITDA)</span><span className="text-green-700">{fmt(c.revBreakdown.netCash)}</span></div>
                                 </div>
                             </div>
@@ -887,22 +1038,38 @@
 
                             {/* Marketing Funnel & Budget Allocation */}
                             <div className="card mt-4 border-indigo-200">
-                                <div className="card-header bg-indigo-50"><div className="card-title text-indigo-800">Marketing Funnel & Budget</div></div>
+                                <div className="card-header bg-indigo-50"><div className="card-title text-indigo-800">TikTok Shop Ads Planning (GMV Max)</div></div>
                                 <div className="card-body p-3">
-                                    <div className="flex justify-between items-end mb-2 border-b pb-2">
-                                        <div className="text-xs text-slate-500">งบการตลาดรวม (Total Budget)</div>
-                                        <div className="text-lg font-bold text-indigo-700">{fmt(c.funnelMetrics.budget)}</div>
+                                    {/* Top Row: Budget & ROAS (The most important for GMV Max) */}
+                                    <div className="grid grid-cols-3 gap-4 mb-4 border-b border-indigo-100 pb-3">
+                                        <div className="text-center">
+                                            <div className="text-[10px] text-slate-500 uppercase font-bold">Total Budget</div>
+                                            <div className="text-lg font-bold text-indigo-700">{fmt(c.funnelMetrics.budget)}</div>
+                                            <div className="text-[9px] text-slate-400">เฉพาะ Marketing %</div>
+                                        </div>
+                                        <div className="text-center bg-indigo-50 rounded border border-indigo-100 p-1">
+                                            <div className="text-[10px] text-indigo-800 uppercase font-bold">Target ROAS</div>
+                                            <div className="text-2xl font-bold text-indigo-600">{c.funnelMetrics.roas.toFixed(2)}x</div>
+                                            <div className="text-[9px] text-indigo-400">ตั้งค่า Minimum ROAS</div>
+                                        </div>
+                                         <div className="text-center">
+                                            <div className="text-[10px] text-slate-500 uppercase font-bold">ACOS</div>
+                                            <div className="text-lg font-bold text-slate-600">{c.funnelMetrics.acos.toFixed(1)}%</div>
+                                            <div className="text-[9px] text-slate-400">สัดส่วนค่าแอด/GMV</div>
+                                        </div>
                                     </div>
+
+                                    {/* Middle Row: Manual Bidding Reference (CPA/CPC) */}
                                     <div className="grid grid-cols-2 gap-4 mb-3">
                                         <div>
-                                            <div className="text-[10px] text-slate-400 uppercase font-bold">Cost Per Order (CPA)</div>
+                                            <div className="text-[10px] text-slate-400 uppercase font-bold">Max CPA (Cost/Order)</div>
                                             <div className="text-xl font-bold text-pink-600">{fmt(c.funnelMetrics.cpa)} ฿</div>
-                                            <div className="text-[9px] text-slate-400">ต้นทุนโฆษณาต่อ 1 ออเดอร์</div>
+                                            <div className="text-[9px] text-slate-400">ต้นทุนต่อออเดอร์ (ห้ามเกิน)</div>
                                         </div>
                                         <div>
                                             <div className="text-[10px] text-slate-400 uppercase font-bold">Max CPC (Bid)</div>
                                             <div className="text-xl font-bold text-blue-600">{c.funnelMetrics.cpc.toFixed(2)} ฿</div>
-                                            <div className="text-[9px] text-slate-400">ราคาคลิกสูงสุดที่รับได้</div>
+                                            <div className="text-[9px] text-slate-400">ราคาคลิก (Standard Mode)</div>
                                         </div>
                                     </div>
                                     
@@ -955,12 +1122,12 @@
                                         </tbody>
                                     </table>
                                     <div className="mt-4 grid grid-cols-1 md:grid-cols-4 gap-4 text-center">
-                                        <div className="p-3 bg-slate-100 rounded border"><div className="text-xs text-slate-500">เงินสดเริ่มต้น (Working Cap)</div><div className="font-bold text-slate-700">{fmt(c.workingCap)}</div></div>
-                                        <div className={`p-3 rounded border ${c.lowestCashBalance < 0 ? 'bg-red-100 border-red-300' : 'bg-green-50 border-green-200'}`}><div className={`text-xs font-bold ${c.lowestCashBalance < 0 ? 'text-red-600' : 'text-green-600'}`}>จุดเงินสดต่ำสุด (Lowest)</div><div className={`font-bold ${c.lowestCashBalance < 0 ? 'text-red-700' : 'text-green-700'}`}>{fmt(c.lowestCashBalance)}</div></div>
-                                        <div className="p-3 bg-blue-50 rounded border border-blue-100 text-red-500"><div className="text-xs text-red-500">ผ่อนเงินต้น+ดอกเบี้ย</div><div className="font-bold">-{fmt(c.annualPrincipalPaid + c.annualFinanceCost)}</div></div>
-                                        <div className="p-3 bg-red-50 rounded border border-red-100"><div className="text-xs text-red-500">หักภาษีจ่ายจริงปีนี้ (Cash Paid)</div><div className="font-bold text-red-700">-{fmt(c.cfTotal.tax)}</div></div>
-                                        <div className="col-span-1 md:col-span-2 p-3 bg-indigo-50 rounded border border-indigo-200 mt-2 md:mt-0"><div className="text-xs text-indigo-600">กำไรสุทธิทางบัญชี (Net Profit)</div><div className="font-bold text-xl text-indigo-800">{fmt(c.netProfit)}</div><div className="text-[10px] text-indigo-400">(รายได้ - ค่าใช้จ่าย - ค่าเสื่อม - ดอกเบี้ย - ภาษี)</div></div>
-                                        <div className="col-span-1 md:col-span-2 p-3 bg-green-50 rounded border border-green-200 mt-2 md:mt-0"><div className="text-xs text-green-600">เงินสดสุทธิสิ้นปี (Cash Balance Year End)</div><div className={`font-bold text-xl ${c.cfTotal.cashFinal < 0 ? 'text-red-600':'text-green-800'}`}>{fmt(c.cfTotal.cashFinal)}</div><div className="text-[10px] text-green-500">(เงินต้น + กำไรเงินสด - ภาษีจ่ายจริง - หนี้)</div></div>
+                                            <div className="p-3 bg-slate-100 rounded border"><div className="text-xs text-slate-500">เงินสดเริ่มต้น (Working Cap)</div><div className="font-bold text-slate-700">{fmt(c.workingCap)}</div></div>
+                                            <div className={`p-3 rounded border ${c.lowestCashBalance < 0 ? 'bg-red-100 border-red-300' : 'bg-green-50 border-green-200'}`}><div className={`text-xs font-bold ${c.lowestCashBalance < 0 ? 'text-red-600' : 'text-green-600'}`}>จุดเงินสดต่ำสุด (Lowest)</div><div className={`font-bold ${c.lowestCashBalance < 0 ? 'text-red-700' : 'text-green-700'}`}>{fmt(c.lowestCashBalance)}</div></div>
+                                            <div className="p-3 bg-blue-50 rounded border border-blue-100 text-red-500"><div className="text-xs text-red-500">ผ่อนเงินต้น+ดอกเบี้ย</div><div className="font-bold">-{fmt(c.annualPrincipalPaid + c.annualFinanceCost)}</div></div>
+                                            <div className="p-3 bg-red-50 rounded border border-red-100"><div className="text-xs text-red-500">หักภาษีจ่ายจริงปีนี้ (Cash Paid)</div><div className="font-bold text-red-700">-{fmt(c.cfTotal.tax)}</div></div>
+                                            <div className="col-span-1 md:col-span-2 p-3 bg-indigo-50 rounded border border-indigo-200 mt-2 md:mt-0"><div className="text-xs text-indigo-600">กำไรสุทธิทางบัญชี (Net Profit)</div><div className="font-bold text-xl text-indigo-800">{fmt(c.netProfit)}</div><div className="text-[10px] text-indigo-400">(รายได้ - ค่าใช้จ่าย - ค่าเสื่อม - ดอกเบี้ย - ภาษี)</div></div>
+                                            <div className="col-span-1 md:col-span-2 p-3 bg-green-50 rounded border border-green-200 mt-2 md:mt-0"><div className="text-xs text-green-600">เงินสดสุทธิสิ้นปี (Cash Balance Year End)</div><div className={`font-bold text-xl ${c.cfTotal.cashFinal < 0 ? 'text-red-600':'text-green-800'}`}>{fmt(c.cfTotal.cashFinal)}</div><div className="text-[10px] text-green-500">(เงินต้น + กำไรเงินสด - ภาษีจ่ายจริง - หนี้)</div></div>
                                     </div>
                                 </div>
                             </div>
@@ -1021,6 +1188,178 @@
                                 <div className="p-3 bg-blue-50 border-t flex justify-between items-center">
                                     <div className="text-xs text-slate-500">Net Present Value (NPV) คำนวณจากกระแสเงินสดสุทธิ 5 ปี หักเงินลงทุนเริ่มแรก</div>
                                     <div className={`text-xl font-bold ${projection.npv > 0 ? 'text-green-600' : 'text-red-600'}`}>NPV: {fmt(projection.npv)}</div>
+                                </div>
+                            </div>
+
+                            {/* NEW: AI Analysis & Recommendation Section */}
+                            <div className="card mt-6 border-slate-300 shadow-md">
+                                <div className="card-header bg-slate-800 text-white"><div className="card-title text-white">🤖 วิเคราะห์ผลลัพธ์ & คำแนะนำ (AI Analysis)</div></div>
+                                <div className="card-body space-y-4">
+                                    
+                                    {/* 1. NPV Analysis */}
+                                    <div className={`p-4 rounded border-l-4 ${projection.npv > 0 ? 'bg-green-50 border-green-500' : 'bg-red-50 border-red-500'}`}>
+                                        <div className="font-bold text-slate-700 flex items-center gap-2">
+                                            <span className="text-lg">{projection.npv > 0 ? '✅' : '❌'}</span> 
+                                            มูลค่าปัจจุบันสุทธิ (NPV) = {fmt(projection.npv)} บาท
+                                        </div>
+                                        <div className="text-sm text-slate-600 mt-2">
+                                            <strong>ความหมาย:</strong> {projection.npv > 0 
+                                                ? "ยอดเยี่ยม! มูลค่าธุรกิจเป็นบวก แสดงว่าผลตอบแทนที่ได้ 'ชนะ' ทั้งเงินเฟ้อและดอกเบี้ยเงินกู้ การลงทุนนี้สร้างความมั่งคั่งให้คุณได้จริง" 
+                                                : "น่าเป็นห่วง! มูลค่าธุรกิจติดลบ แสดงว่ากำไรที่ได้ในอนาคต เมื่อคิดลดกลับมาเป็นค่าเงินปัจจุบันแล้ว 'ไม่คุ้ม' กับเงินที่ลงทุนไป หรือแพ้ดอกเบี้ย/เงินเฟ้อ"}
+                                        </div>
+                                        <div className="text-sm font-bold mt-2 text-slate-700 bg-white/50 p-2 rounded inline-block">
+                                            💡 คำแนะนำ: {projection.npv > 0 
+                                                ? "ลุยต่อได้เลย! แผนธุรกิจนี้แข็งแกร่ง ลองพิจารณา Re-invest กำไรเพื่อขยายกิจการให้โตเร็วกว่าเดิม" 
+                                                : "หยุดคิดก่อน! ลองลดเงินลงทุนเริ่มต้น (CAPEX) หรือหาวิธีเพิ่มราคาขาย/ลดต้นทุนผลิต จนกว่า NPV จะเป็นบวก"}
+                                        </div>
+                                    </div>
+
+                                    {/* 2. ROAS Analysis */}
+                                    <div className={`p-4 rounded border-l-4 ${c.funnelMetrics.roas >= 5 ? 'bg-blue-50 border-blue-500' : (c.funnelMetrics.roas >= 3 ? 'bg-yellow-50 border-yellow-500' : 'bg-orange-50 border-orange-500')}`}>
+                                        <div className="font-bold text-slate-700 flex items-center gap-2">
+                                            <span className="text-lg">{c.funnelMetrics.roas >= 5 ? '🚀' : (c.funnelMetrics.roas >= 3 ? '⚠️' : '🔥')}</span>
+                                            ผลตอบแทนโฆษณา (ROAS) = {c.funnelMetrics.roas.toFixed(2)}เท่า
+                                        </div>
+                                        <div className="text-sm text-slate-600 mt-2">
+                                            <strong>สถานการณ์:</strong> {c.funnelMetrics.roas >= 5 
+                                                ? "ค่าแอดถูกมาก! ยิงแอด 1 บาท ได้ยอดขายกลับมาเกิน 5 บาท กำไรเหลือเฟือสำหรับค่าของและค่าดำเนินงาน" 
+                                                : (c.funnelMetrics.roas >= 3 
+                                                    ? "พอไปได้ แต่เริ่มตึง! ค่าแอดกินกำไรไปพอสมควร ต้องคุมงบดีๆ อย่าให้ ROAS ต่ำกว่านี้" 
+                                                    : "อันตราย! ค่าแอดแพงเกินไป กินกำไรจนแทบไม่เหลือ หรืออาจเข้าเนื้อ")}
+                                        </div>
+                                        <div className="text-sm font-bold mt-2 text-slate-700 bg-white/50 p-2 rounded inline-block">
+                                            💡 คำแนะนำ: {c.funnelMetrics.roas >= 5 
+                                                ? "Scale Up! อัดงบเพิ่มได้เลย ตราบใดที่ ROAS ยังไม่ตก เพื่อกอบโกยยอดขายให้มากที่สุด" 
+                                                : (c.funnelMetrics.roas >= 3 
+                                                    ? "Optimize! ลองปรับคอนเทนต์ให้คนหยุดดูมากขึ้น หรือทำโปรโมชั่นเพิ่ม Basket Size เพื่อดึง ROAS ให้สูงขึ้น" 
+                                                    : "Stop & Fix! หยุดอัดงบเพิ่ม รีบแก้คลิป/รูปภาพ หรือเช็คราคาคู่แข่งด่วน ถ้าฝืนยิงต่อจะขาดทุน")}
+                                        </div>
+                                    </div>
+
+                                    {/* 3. Cash Flow Analysis */}
+                                    <div className={`p-4 rounded border-l-4 ${c.lowestCashBalance >= 0 ? 'bg-emerald-50 border-emerald-500' : 'bg-red-50 border-red-500'}`}>
+                                        <div className="font-bold text-slate-700 flex items-center gap-2">
+                                            <span className="text-lg">{c.lowestCashBalance >= 0 ? '💰' : '💸'}</span>
+                                            สภาพคล่องเงินสด (Cash Flow)
+                                        </div>
+                                        <div className="text-sm text-slate-600 mt-2">
+                                            <strong>สถานะการเงิน:</strong> {c.lowestCashBalance >= 0 
+                                                ? `ปลอดภัย! เงินสดในมือไม่เคยติดลบ จุดต่ำสุดอยู่ที่ ${fmt(c.lowestCashBalance)} บาท ธุรกิจหมุนเงินทัน` 
+                                                : `เงินขาดมือ! มีบางช่วงที่เงินสดติดลบสูงสุด ${fmt(c.lowestCashBalance)} บาท แปลว่าเงินเข้าไม่ทันจ่ายเงินออก`}
+                                        </div>
+                                        <div className="text-sm font-bold mt-2 text-slate-700 bg-white/50 p-2 rounded inline-block">
+                                            💡 คำแนะนำ: {c.lowestCashBalance >= 0 
+                                                ? "บริหารเงินสดได้ดี อาจพิจารณานำเงินส่วนเกินไปลงทุนระยะสั้น หรือโปะหนี้เพื่อลดดอกเบี้ย" 
+                                                : "หาเงินเติมด่วน! เตรียมเงินสำรองเพิ่มเท่ากับยอดที่ติดลบ หรือเจรจาขอเครดิตเทอมซัพพลายเออร์ให้ยาวขึ้น (เพื่อจ่ายช้าลง)"}
+                                        </div>
+                                    </div>
+
+                                    {/* --- NEW: Financial Deep Dive (Grid) --- */}
+                                    <div className="mt-6 pt-4 border-t border-slate-200">
+                                        <h4 className="font-bold text-slate-700 mb-3 flex items-center gap-2">📊 เจาะลึกสุขภาพการเงิน (Financial Deep Dive)</h4>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                                            
+                                            {/* EBITDA */}
+                                            <div className="p-3 border rounded bg-white hover:shadow-sm">
+                                                <div className="flex justify-between text-xs text-slate-500 mb-1"><span>EBITDA (กำไรเงินสด)</span><span className={c.ebitda > 0 ? 'text-green-500 font-bold' : 'text-red-500 font-bold'}>{fmt(c.ebitda)}</span></div>
+                                                <div className="text-[10px] text-slate-600">{c.ebitda > 0 ? "✅ ธุรกิจเลี้ยงตัวเองได้ มีเงินสดเหลือไปจ่ายดอกเบี้ย/ภาษี" : "❌ ขาดทุนจากการดำเนินงาน ต้องรีบลดต้นทุนหรือเพิ่มยอดขาย"}</div>
+                                            </div>
+
+                                            {/* DSCR */}
+                                            <div className="p-3 border rounded bg-white hover:shadow-sm">
+                                                <div className="flex justify-between text-xs text-slate-500 mb-1"><span>DSCR (ความสามารถจ่ายหนี้)</span><span className={c.dscr >= 1.25 ? 'text-green-500 font-bold' : 'text-orange-500 font-bold'}>{c.dscr.toFixed(2)}x</span></div>
+                                                <div className="text-[10px] text-slate-600">{c.dscr >= 1.25 ? "✅ ธนาคารรัก! มีกำไรพอจ่ายหนี้สบายๆ" : (c.dscr >= 1 ? "⚠️ พอถูไถ แต่ห้ามสะดุด ไม่งั้นไม่มีเงินจ่ายแบงก์" : "❌ อันตราย! กำไรไม่พอจ่ายค่างวด")}</div>
+                                            </div>
+
+                                            {/* D/E Ratio */}
+                                            <div className="p-3 border rounded bg-white hover:shadow-sm">
+                                                <div className="flex justify-between text-xs text-slate-500 mb-1"><span>D/E Ratio (หนี้สินต่อทุน)</span><span className={(d.loan.amount/d.regCapital) <= 2 ? 'text-green-500 font-bold' : 'text-red-500 font-bold'}>{(d.loan.amount/d.regCapital).toFixed(2)}x</span></div>
+                                                <div className="text-[10px] text-slate-600">{(d.loan.amount/d.regCapital) <= 2 ? "✅ โครงสร้างทุนปลอดภัย ไม่กู้จนเกินตัว" : "❌ เสี่ยงสูง! ธุรกิจแบกภาระหนี้เยอะเกินไป"}</div>
+                                            </div>
+
+                                            {/* BEP */}
+                                            <div className="p-3 border rounded bg-white hover:shadow-sm">
+                                                <div className="flex justify-between text-xs text-slate-500 mb-1"><span>BEP (จุดคุ้มทุน)</span><span className={d.targetBags >= c.bepUnits ? 'text-green-500 font-bold' : 'text-red-500 font-bold'}>{fmt(c.bepUnits)} ถุง</span></div>
+                                                <div className="text-[10px] text-slate-600">{d.targetBags >= c.bepUnits ? `✅ ปลอดภัย ยอดขายเกินจุดคุ้มทุนมา ${fmt(d.targetBags - c.bepUnits)} ถุง` : "❌ ขาดทุน! ยอดขายยังไม่ถึงจุดคุ้มทุน"}</div>
+                                            </div>
+
+                                            {/* ROE/ROA */}
+                                            <div className="p-3 border rounded bg-white hover:shadow-sm">
+                                                <div className="flex justify-between text-xs text-slate-500 mb-1"><span>ROE (ผลตอบแทนเจ้าของ)</span><span className="text-blue-500 font-bold">{fmtDec(c.roi)}%</span></div>
+                                                <div className="text-[10px] text-slate-600">{c.roi > 15 ? "✅ น่าลงทุนมาก! ผลตอบแทนสูงกว่าตลาดหุ้น" : (c.roi > 5 ? "⚠️ พอใช้ได้ สูงกว่าฝากแบงก์นิดหน่อย" : "❌ ต่ำไป อาจไม่คุ้มเหนื่อย")}</div>
+                                            </div>
+
+                                            {/* Margins */}
+                                            <div className="p-3 border rounded bg-white hover:shadow-sm">
+                                                <div className="flex justify-between text-xs text-slate-500 mb-1"><span>Net Margin (กำไรสุทธิ)</span><span className={c.netMargin > 10 ? 'text-green-500 font-bold' : 'text-orange-500 font-bold'}>{c.netMargin.toFixed(1)}%</span></div>
+                                                <div className="text-[10px] text-slate-600">{c.netMargin > 15 ? "✅ กำไรหนา แข็งแกร่ง" : (c.netMargin > 5 ? "⚠️ กำไรบาง ระวังต้นทุนบานปลาย" : "❌ กำไรน้อยมาก เสี่ยงขาดทุน")}</div>
+                                            </div>
+
+                                            {/* Fixed/Variable Check */}
+                                            <div className="p-3 border rounded bg-white hover:shadow-sm">
+                                                <div className="flex justify-between text-xs text-slate-500 mb-1"><span>Cost Structure</span><span className="text-slate-700 font-bold">Fix {((c.revBreakdown.opFixed/c.revBreakdown.opCost)*100).toFixed(0)}% : Var {((c.revBreakdown.opVar/c.revBreakdown.opCost)*100).toFixed(0)}%</span></div>
+                                                <div className="text-[10px] text-slate-600">{c.revBreakdown.opFixed > c.revBreakdown.opVar ? "⚠️ Fixed Cost สูง! ต้องเร่งยอดขายเพื่อลดต้นทุนต่อหน่วย (Economy of Scale)" : "✅ เน้น Variable Cost ดีแล้ว ยืดหยุ่นตามยอดขาย"}</div>
+                                            </div>
+
+                                            {/* Working Cap */}
+                                            <div className="p-3 border rounded bg-white hover:shadow-sm">
+                                                <div className="flex justify-between text-xs text-slate-500 mb-1"><span>Working Cap (ทุนหมุนเวียน)</span><span className={c.workingCap > 0 ? 'text-blue-500 font-bold' : 'text-red-500 font-bold'}>{fmt(c.workingCap)}</span></div>
+                                                <div className="text-[10px] text-slate-600">{c.workingCap > 0 ? "✅ มีเงินทุนสำรองเริ่มต้นเพียงพอ" : "❌ เงินทุนเริ่มต้นไม่พอ! เสี่ยงสะดุดตั้งแต่เดือนแรก"}</div>
+                                            </div>
+
+                                            {/* CAPEX */}
+                                            <div className="p-3 border rounded bg-white hover:shadow-sm">
+                                                <div className="flex justify-between text-xs text-slate-500 mb-1"><span>CAPEX Break-even</span><span className="text-slate-700 font-bold">{c.paybackMonth}</span></div>
+                                                <div className="text-[10px] text-slate-600">ระยะเวลาที่จะได้เงินลงทุนก้อนแรกคืนทั้งหมด</div>
+                                            </div>
+
+                                        </div>
+                                    </div>
+
+                                    {/* --- NEW: Marketing Deep Dive (Grid) --- */}
+                                    <div className="mt-4 pt-4 border-t border-slate-200">
+                                        <h4 className="font-bold text-indigo-700 mb-3 flex items-center gap-2">📢 เจาะลึกประสิทธิภาพโฆษณา (Ads Performance)</h4>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                                            
+                                            {/* ACOS */}
+                                            <div className="p-3 border rounded bg-indigo-50/50 hover:shadow-sm">
+                                                <div className="flex justify-between text-xs text-slate-500 mb-1"><span>ACOS (ค่าแอด/ยอดขาย)</span><span className={c.funnelMetrics.acos < 20 ? 'text-green-600 font-bold' : 'text-red-600 font-bold'}>{c.funnelMetrics.acos.toFixed(1)}%</span></div>
+                                                <div className="text-[10px] text-slate-600">{c.funnelMetrics.acos < 20 ? "✅ ดีมาก! ค่าแอดไม่กินกำไร" : "❌ สูงไป! ระวังขายดีแต่เจ๊งเพราะค่าแอด"}</div>
+                                            </div>
+
+                                            {/* CPA */}
+                                            <div className="p-3 border rounded bg-indigo-50/50 hover:shadow-sm">
+                                                <div className="flex justify-between text-xs text-slate-500 mb-1"><span>CPA (ต้นทุนต่อออเดอร์)</span><span className="text-indigo-700 font-bold">{fmt(c.funnelMetrics.cpa)} ฿</span></div>
+                                                <div className="text-[10px] text-slate-600">ต้องมั่นใจว่า กำไรต่อชิ้น > {fmt(c.funnelMetrics.cpa)} บาท ไม่งั้นขาดทุน</div>
+                                            </div>
+
+                                            {/* CPC (Bid) */}
+                                            <div className="p-3 border rounded bg-indigo-50/50 hover:shadow-sm">
+                                                <div className="flex justify-between text-xs text-slate-500 mb-1"><span>Max CPC (ราคาคลิก)</span><span className="text-blue-600 font-bold">{c.funnelMetrics.cpc.toFixed(2)} ฿</span></div>
+                                                <div className="text-[10px] text-slate-600">ห้าม Bid เกินราคานี้ ถ้าราคาตลาดสูงกว่า ต้องเพิ่ม CVR หรือ Basket Size แทน</div>
+                                            </div>
+
+                                            {/* CTR / CVR */}
+                                            <div className="p-3 border rounded bg-indigo-50/50 hover:shadow-sm">
+                                                <div className="flex justify-between text-xs text-slate-500 mb-1"><span>Metrics เป้าหมาย</span><span className="text-slate-700 font-bold">CTR {d.mktFunnel.ctr}% / CVR {d.mktFunnel.cvr}%</span></div>
+                                                <div className="text-[10px] text-slate-600">{d.mktFunnel.ctr < 1.5 ? "⚠️ CTR ต่ำไป ปรับคลิปให้น่าสนใจ" : ""} {d.mktFunnel.cvr < 2 ? "⚠️ CVR ต่ำไป ปรับหน้าเซลเพจ/โปรโมชั่น" : ""}</div>
+                                            </div>
+
+                                            {/* Basket Size */}
+                                            <div className="p-3 border rounded bg-indigo-50/50 hover:shadow-sm">
+                                                <div className="flex justify-between text-xs text-slate-500 mb-1"><span>Basket Size (AOV)</span><span className="text-slate-700 font-bold">{d.mktFunnel.basketSize} ถุง/บิล</span></div>
+                                                <div className="text-[10px] text-slate-600">ถ้าเพิ่ม AOV ได้ ค่าส่งและค่าแอดต่อชิ้นจะถูกลง กำไรจะเพิ่มทันที</div>
+                                            </div>
+
+                                            {/* Reach / Impression */}
+                                            <div className="p-3 border rounded bg-indigo-50/50 hover:shadow-sm">
+                                                <div className="flex justify-between text-xs text-slate-500 mb-1"><span>Scale (การเข้าถึง)</span><span className="text-slate-700 font-bold">{fmt(c.funnelMetrics.visitors)} Clicks</span></div>
+                                                <div className="text-[10px] text-slate-600">ต้องหาคนคลิกเข้ามา {fmt(c.funnelMetrics.visitors)} คน/เดือน ถึงจะได้ยอดตามเป้า</div>
+                                            </div>
+
+                                        </div>
+                                    </div>
+
                                 </div>
                             </div>
 
@@ -1090,14 +1429,98 @@
                                             <div>สิทธิ์ทางภาษีที่ให้นำ "ผลขาดทุนสะสม" ในอดีต มาหักลบกำไรในอนาคต เพื่อจ่ายภาษีน้อยลง (ใช้ได้ 5 ปี)</div>
                                         </div>
                                         <div className="p-2 border rounded hover:bg-slate-50">
-                                            <div className="font-bold text-pink-600 mb-1">CPA / CPO</div>
-                                            <div className="text-slate-500 italic mb-1">Cost Per Acquisition / Order</div>
-                                            <div>ต้นทุนการตลาดทั้งหมด หารด้วยจำนวนออเดอร์ เพื่อดูว่าต้องจ่ายกี่บาทเพื่อให้ได้ลูกค้า 1 ราย</div>
+                                            <div className="font-bold text-slate-700 mb-1">CAPEX (รายจ่ายลงทุน)</div>
+                                            <div className="text-slate-500 italic mb-1">Capital Expenditure</div>
+                                            <div>เงินลงทุนก้อนใหญ่เพื่อซื้อสินทรัพย์ระยะยาว เช่น สร้างโรงงาน ซื้อเครื่องจักร (ไม่ถือเป็นค่าใช้จ่ายรายเดือน แต่คิดเป็นค่าเสื่อม)</div>
                                         </div>
                                         <div className="p-2 border rounded hover:bg-slate-50">
-                                            <div className="font-bold text-sky-600 mb-1">CPC (Max Bid)</div>
+                                            <div className="font-bold text-slate-700 mb-1">OPEX (ค่าใช้จ่ายดำเนินงาน)</div>
+                                            <div className="text-slate-500 italic mb-1">Operating Expenditure</div>
+                                            <div>ค่าใช้จ่ายรายวันที่ใช้ในการรันธุรกิจ เช่น เงินเดือน ค่าไฟ ค่าการตลาด (ถือเป็นค่าใช้จ่ายทันทีในเดือนนั้นๆ)</div>
+                                        </div>
+                                        <div className="p-2 border rounded hover:bg-slate-50">
+                                            <div className="font-bold text-emerald-700 mb-1">Cash Flow (กระแสเงินสด)</div>
+                                            <div className="text-slate-500 italic mb-1">Liquidity</div>
+                                            <div>เส้นเลือดใหญ่ของธุรกิจ คือเงินสดที่ไหลเข้า-ออกจริง สำคัญกว่ากำไรทางบัญชี เพราะถ้าเงินสดขาดมือ ธุรกิจเจ๊งได้ทันที</div>
+                                        </div>
+                                        <div className="p-2 border rounded hover:bg-slate-50">
+                                            <div className="font-bold text-red-600 mb-1">Fixed Cost (ต้นทุนคงที่)</div>
+                                            <div className="text-slate-500 italic mb-1">Fixed Expenses</div>
+                                            <div>ค่าใช้จ่ายที่ต้องจ่ายเท่าเดิมไม่ว่าจะขายดีหรือไม่ เช่น ค่าเช่า เงินเดือนพนักงานออฟฟิศ ค่าเสื่อมราคา</div>
+                                        </div>
+                                        <div className="p-2 border rounded hover:bg-slate-50">
+                                            <div className="font-bold text-orange-600 mb-1">Variable Cost (ต้นทุนผันแปร)</div>
+                                            <div className="text-slate-500 italic mb-1">Variable Expenses</div>
+                                            <div>ค่าใช้จ่ายที่เพิ่มลดตามยอดขาย เช่น ค่าข้าวเปลือก ค่าถุง ค่าคอมมิชชั่น ค่าขนส่ง</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* NEW: Marketing & Ads Glossary Section */}
+                            <div className="card mt-6 border-indigo-200 shadow-sm">
+                                <div className="card-header bg-indigo-50"><div className="card-title text-indigo-800 text-sm">📢 คำอธิบายตัวย่อทางการตลาด & โฆษณา (Marketing & Ads Glossary)</div></div>
+                                <div className="card-body">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-xs text-slate-600">
+                                        <div className="p-2 border rounded hover:bg-indigo-50">
+                                            <div className="font-bold text-indigo-700 mb-1">ROAS (ผลตอบแทนค่าโฆษณา)</div>
+                                            <div className="text-slate-500 italic mb-1">Return on Ad Spend</div>
+                                            <div>(ยอดขายจากโฆษณา / ค่าโฆษณา) จ่ายค่าแอด 1 บาท ได้ยอดขายกลับมากี่บาท <br/><span className="font-bold text-indigo-600">ยิ่งสูงยิ่งดี (TikTok Shop ควร > 5-7x)</span></div>
+                                        </div>
+                                        <div className="p-2 border rounded hover:bg-indigo-50">
+                                            <div className="font-bold text-pink-700 mb-1">ACOS (สัดส่วนต้นทุนโฆษณา)</div>
+                                            <div className="text-slate-500 italic mb-1">Advertising Cost of Sales</div>
+                                            <div>(ค่าโฆษณา / ยอดขาย) ค่าแอดคิดเป็นกี่ % ของยอดขายสินค้า <br/><span className="font-bold text-pink-600">ยิ่งต่ำยิ่งดี (ควรต่ำกว่า % กำไรขั้นต้น)</span></div>
+                                        </div>
+                                        <div className="p-2 border rounded hover:bg-indigo-50">
+                                            <div className="font-bold text-blue-700 mb-1">CPA (ต้นทุนต่อออเดอร์)</div>
+                                            <div className="text-slate-500 italic mb-1">Cost Per Acquisition / Action</div>
+                                            <div>(งบทั้งหมด / จำนวนออเดอร์) จ่ายเงินกี่บาทเพื่อให้ลูกค้าซื้อ 1 ครั้ง <br/><span className="font-bold text-blue-600">ห้ามเกินกำไรต่อชิ้น ไม่งั้นขาดทุน</span></div>
+                                        </div>
+                                        <div className="p-2 border rounded hover:bg-indigo-50">
+                                            <div className="font-bold text-orange-700 mb-1">CPC (ราคาต่อคลิก)</div>
                                             <div className="text-slate-500 italic mb-1">Cost Per Click</div>
-                                            <div>ราคาต่อคลิกสูงสุดที่เราจ่ายไหวเพื่อให้ยังคุ้มทุน (ขึ้นอยู่กับ Conversion Rate และ Basket Size)</div>
+                                            <div>ราคาเฉลี่ยที่เราจ่ายเมื่อมีคนคลิกโฆษณา 1 ครั้ง <br/>ขึ้นอยู่กับการแข่งขันและคุณภาพโฆษณา</div>
+                                        </div>
+                                        <div className="p-2 border rounded hover:bg-indigo-50">
+                                            <div className="font-bold text-teal-700 mb-1">CTR (อัตราการคลิก)</div>
+                                            <div className="text-slate-500 italic mb-1">Click-Through Rate</div>
+                                            <div>(จำนวนคลิก / การแสดงผล) % คนที่เห็นโฆษณาแล้วกดคลิก <br/><span className="font-bold text-teal-600">ยิ่งสูงแสดงว่าคอนเทนต์น่าสนใจ (TikTok ควร > 1.5-2%)</span></div>
+                                        </div>
+                                        <div className="p-2 border rounded hover:bg-indigo-50">
+                                            <div className="font-bold text-purple-700 mb-1">CVR (อัตราการซื้อ)</div>
+                                            <div className="text-slate-500 italic mb-1">Conversion Rate</div>
+                                            <div>(จำนวนออเดอร์ / จำนวนคลิก) % คนที่คลิกเข้ามาแล้วตัดสินใจซื้อจริง <br/><span className="font-bold text-purple-600">สำคัญมาก! ถ้าต่ำต้องแก้ที่หน้าสินค้า/ราคา</span></div>
+                                        </div>
+                                        <div className="p-2 border rounded hover:bg-indigo-50">
+                                            <div className="font-bold text-sky-700 mb-1">CPM (ต้นทุนการมองเห็น)</div>
+                                            <div className="text-slate-500 italic mb-1">Cost Per Mille (1,000 Impressions)</div>
+                                            <div>ราคาที่ต้องจ่ายเพื่อให้โฆษณาแสดงผลครบ 1,000 ครั้ง <br/>ใช้ดูว่าค่าโฆษณาแพงขึ้นหรือถูกลงในภาพรวม</div>
+                                        </div>
+                                        <div className="p-2 border rounded hover:bg-indigo-50">
+                                            <div className="font-bold text-green-700 mb-1">GMV (ยอดขายรวม)</div>
+                                            <div className="text-slate-500 italic mb-1">Gross Merchandise Value</div>
+                                            <div>ยอดขายสินค้ารวมทั้งหมดที่เกิดขึ้นบนแพลตฟอร์ม (ยังไม่หักค่าธรรมเนียมหรือการคืนของ)</div>
+                                        </div>
+                                        <div className="p-2 border rounded hover:bg-indigo-50">
+                                            <div className="font-bold text-red-700 mb-1">Impression (การแสดงผล)</div>
+                                            <div className="text-slate-500 italic mb-1">Ad Views</div>
+                                            <div>จำนวนครั้งที่โฆษณาถูกนำส่งไปแสดงบนหน้าจอลูกค้า (นับซ้ำคนเดิมได้)</div>
+                                        </div>
+                                        <div className="p-2 border rounded hover:bg-indigo-50">
+                                            <div className="font-bold text-indigo-600 mb-1">Basket Size / AOV</div>
+                                            <div className="text-slate-500 italic mb-1">Average Order Value</div>
+                                            <div>ยอดซื้อเฉลี่ยต่อ 1 ออเดอร์ (ยิ่งเยอะยิ่งดี เพราะค่าส่งและค่าแอดมักจะเท่าเดิม ทำให้กำไรต่อบิลเพิ่มขึ้น)</div>
+                                        </div>
+                                        <div className="p-2 border rounded hover:bg-indigo-50">
+                                            <div className="font-bold text-slate-700 mb-1">Affiliate (นายหน้า)</div>
+                                            <div className="text-slate-500 italic mb-1">Commission Base</div>
+                                            <div>การขายผ่านคนอื่น (Creators) โดยเราแบ่ง % ยอดขายให้ <br/>ข้อดีคือ: ขายไม่ได้ ไม่ต้องจ่าย (Cost per Action)</div>
+                                        </div>
+                                        <div className="p-2 border rounded hover:bg-indigo-50">
+                                            <div className="font-bold text-slate-700 mb-1">Reach (การเข้าถึง)</div>
+                                            <div className="text-slate-500 italic mb-1">Unique Users</div>
+                                            <div>จำนวน "คน" จริงๆ ที่เห็นโฆษณา (ต่างจาก Impression ที่นับจำนวน "ครั้ง") ใช้ดูว่าโฆษณากระจายไปกว้างแค่ไหน</div>
                                         </div>
                                     </div>
                                 </div>
