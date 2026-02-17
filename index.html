@@ -153,8 +153,10 @@
                 elec: "ค่าไฟ",
                 platform: "Platform",
                 marketing: "Marketing",
+                returnRate: "อัตราคืนสินค้า (%)",
                 fixedParamTitle: "Fixed Cost (Other)",
                 maintenance: "ซ่อมบำรุง (%)",
+                insurance: "ประกันภัย/ปี",
                 erp: "ERP Software",
                 campaign: "แคมเปญลุ้นทองฯ",
                 misc: "อื่นๆ (Misc)",
@@ -197,6 +199,7 @@
                 monthlyFlowTitle: "Monthly Revenue & Cost Breakdown",
                 cashInflow: "1. Cash Inflow",
                 salesGross: "- Sales (Gross)",
+                refundDeduction: "- Refunds (หักคืนสินค้า)",
                 vatObligation: "2. VAT Obligation",
                 vatNote2: "* VAT จากยอดขายรวม",
                 opOutflow: "3. Operational Outflow",
@@ -265,6 +268,19 @@
                 spreadAnalysis: "⚠️ Sensitivity (Spread: Cost vs Price)",
                 paddyLabel: "Paddy (Rice Cost)",
                 priceLabel: "Selling Price",
+                
+                // NEW: Scenario Comparison
+                scenComp: "เปรียบเทียบ 3 ฉากทัศน์ (Scenario Comparison)",
+                scenWorst: "Worst (แย่สุด)",
+                scenBase: "Base (ปกติ)",
+                scenBest: "Best (ดีสุด)",
+                scenProfit: "กำไรสุทธิ",
+                scenCash: "เงินสดสิ้นปี",
+                
+                // NEW: Ads Matrix
+                adsMatrixTitle: "🎯 Ads Efficiency Matrix (CTR x CVR = ROAS)",
+                adsMatX: "CTR (Clip Quality)",
+                adsMatY: "CVR (Sale Page)",
 
                 // --- Cash Flow Summary (Below Table) ---
                 wcStart: "เงินสดเริ่มต้น (Working Cap)",
@@ -431,8 +447,10 @@
                 elec: "电费",
                 platform: "平台费",
                 marketing: "营销费",
+                returnRate: "退货率 (Return %)",
                 fixedParamTitle: "固定成本 (其他)",
                 maintenance: "维修保养 (%)",
+                insurance: "保险费 (年)",
                 erp: "ERP 软件",
                 campaign: "黄金活动",
                 misc: "杂项 (Misc)",
@@ -475,6 +493,7 @@
                 monthlyFlowTitle: "每月收入与成本明细 (Monthly Revenue & Cost Breakdown)",
                 cashInflow: "1. 现金流入",
                 salesGross: "- 销售额 (毛)",
+                refundDeduction: "- 退货 (Refunds)",
                 vatObligation: "2. 增值税义务",
                 vatNote2: "* 基于总销售额的增值税",
                 opOutflow: "3. 运营流出",
@@ -543,6 +562,19 @@
                 spreadAnalysis: "⚠️ 敏感性分析 (价差: 成本 vs 售价)",
                 paddyLabel: "稻谷成本 (Paddy)",
                 priceLabel: "售价 (Price)",
+
+                // NEW: Scenario Comparison
+                scenComp: "场景比较 (Scenario Comparison)",
+                scenWorst: "最差 (Worst)",
+                scenBase: "正常 (Base)",
+                scenBest: "最好 (Best)",
+                scenProfit: "净利润",
+                scenCash: "年末现金",
+
+                // NEW: Ads Matrix
+                adsMatrixTitle: "🎯 广告效率矩阵 (CTR x CVR = ROAS)",
+                adsMatX: "CTR (视频质量)",
+                adsMatY: "CVR (转化能力)",
 
                 // --- Cash Flow Summary (Below Table) ---
                 wcStart: "初始资金 (Working Cap)",
@@ -693,8 +725,8 @@
                 { role: "Admin/Account", count: 1, salary: 20000 },
                 { role: "Sales/Marketing", count: 2, salary: 17775 }
             ],
-            varParams: { elecRate: 600, mktPercent: 14, platformPercent: 12 },
-            fixedParams: { erp: 9000, campaign: 41000, other: 10000, maintPercent: 2 },
+            varParams: { elecRate: 600, mktPercent: 14, platformPercent: 12, returnRate: 1 },
+            fixedParams: { erp: 9000, campaign: 41000, other: 10000, maintPercent: 2, insurance: 60000 },
             // Campaign Breakdown Details
             campaignDetails: [
                 { id: "camp_gold1", name: "ลุ้นทอง 1 สลึง", qty: 1, costPerUnit: 16500 },
@@ -724,6 +756,10 @@
                         const parsed = JSON.parse(fromBase64(sharedData));
                         // Ensure compatibility with potentially older shared links
                         if (!parsed.campaignDetails) parsed.campaignDetails = INITIAL.campaignDetails;
+                        // Default insurance if missing
+                        if (parsed.fixedParams && parsed.fixedParams.insurance === undefined) {
+                            parsed.fixedParams.insurance = 60000;
+                        }
                         return parsed;
                     }
 
@@ -731,6 +767,10 @@
                     const savedData = localStorage.getItem('morbSukFinancialData_v42'); 
                     let parsed = savedData ? JSON.parse(savedData) : INITIAL;
                     if (!parsed.campaignDetails) parsed.campaignDetails = INITIAL.campaignDetails;
+                     // Default insurance if missing
+                    if (parsed.fixedParams && parsed.fixedParams.insurance === undefined) {
+                        parsed.fixedParams.insurance = 60000;
+                    }
                     
                     // 3. Migrate old data to have IDs for translation if missing
                     parsed.byProducts = parsed.byProducts.map((p, i) => (!p.id ? { ...p, id: INITIAL.byProducts[i]?.id } : p));
@@ -859,6 +899,10 @@
                 const maintenanceCostYearly = data.capex.machine * (maintPercent / 100);
                 const maintenanceCostMonthly = maintenanceCostYearly / 12;
 
+                // Insurance (Yearly to Monthly)
+                const insuranceYearly = (data.fixedParams.insurance !== undefined) ? data.fixedParams.insurance : 60000;
+                const insuranceMonthly = insuranceYearly / 12;
+
                 const dayTarget = data.targetBags / 30;
                 const hourTarget = dayTarget / 24; 
                 const riceRev = data.targetBags * data.price;
@@ -875,8 +919,12 @@
 
                 const logIncome = (data.targetBags * (data.logistics.percent/100)) * data.logistics.profit;
 
+                // Refund Logic
+                const refundTotal = riceRev * ((data.varParams.returnRate || 0) / 100);
+
                 // VAT Logic
-                const baseRev = riceRev + totalByProductIncome + logIncome; 
+                // Base revenue for VAT should be net of refunds
+                const baseRev = (riceRev - refundTotal) + totalByProductIncome + logIncome; 
                 const totalVatOut = baseRev - (baseRev / 1.07);
 
                 // Expenses
@@ -900,14 +948,14 @@
                     return { ...h, ssoPerPerson, totalPerRole, ssoTotalRole };
                 });
                 const salaryTotal = baseSalaryTotal + ssoTotal; 
-                const fixedCashTotal = salaryTotal + data.fixedParams.erp + data.fixedParams.campaign + data.fixedParams.other + maintenanceCostMonthly; 
+                const fixedCashTotal = salaryTotal + data.fixedParams.erp + data.fixedParams.campaign + data.fixedParams.other + maintenanceCostMonthly + insuranceMonthly; 
 
                 // Input VAT Calculation
                 const vatableExpenses = packTotal + elecTotal + platformTotal + mktTotal;
                 const totalVatIn = vatableExpenses - (vatableExpenses / 1.07);
                 
                 const totalVar = riceTotal + packTotal + elecTotal + platformTotal + mktTotal; 
-                const section7Total = elecTotal + platformTotal + mktTotal + data.fixedParams.erp + data.fixedParams.campaign + data.fixedParams.other + maintenanceCostMonthly;
+                const section7Total = elecTotal + platformTotal + mktTotal + data.fixedParams.erp + data.fixedParams.campaign + data.fixedParams.other + maintenanceCostMonthly + insuranceMonthly;
 
                 const riceCostUnit = (5 / (data.yield/100)) * (data.paddyPrice/1000);
                 const matCostUnit = riceCostUnit + data.unit.bag + data.unit.sticker;
@@ -993,7 +1041,7 @@
                     const mRice = riceTotal * growthFactor;
                     const mVatableVar = (packTotal + elecTotal + platformTotal + mktTotal) * growthFactor;
                     const mSalary = salaryTotal;
-                    const mVatableFixed = (data.fixedParams.erp + data.fixedParams.campaign + data.fixedParams.other + maintenanceCostMonthly);
+                    const mVatableFixed = (data.fixedParams.erp + data.fixedParams.campaign + data.fixedParams.other + maintenanceCostMonthly + insuranceMonthly);
                     const mExpCash = mRice + mVatableVar + mSalary + mVatableFixed; 
                     
                     const mOutVat = totalVatOut * growthFactor;
@@ -1122,12 +1170,13 @@
                     opFixed: fixedCashTotal,
                     netCash: baseRev - totalVatOut - (totalVar - totalVatOut) - fixedCashTotal,
                     riceCost: riceTotal, packCost: packTotal, feesCost: platformTotal + mktTotal,
-                    elecCost: elecTotal, salaryCost: salaryTotal, otherFixed: data.fixedParams.erp + data.fixedParams.campaign + data.fixedParams.other + maintenanceCostMonthly,
+                    elecCost: elecTotal, salaryCost: salaryTotal, otherFixed: data.fixedParams.erp + data.fixedParams.campaign + data.fixedParams.other + maintenanceCostMonthly + insuranceMonthly,
                     otherDetails: {
                         erp: data.fixedParams.erp,
                         campaign: data.fixedParams.campaign,
                         misc: data.fixedParams.other,
-                        maintenance: maintenanceCostMonthly
+                        maintenance: maintenanceCostMonthly,
+                        insurance: insuranceMonthly
                     }
                 };
 
@@ -1147,7 +1196,8 @@
                     annualFinanceCost, annualPrincipalPaid,
                     lowestCashBalance, 
                     funnelMetrics, 
-                    yrProj: null 
+                    yrProj: null,
+                    refundTotal // Export refund amount
                 };
             };
 
@@ -1192,6 +1242,62 @@
                 });
                 return results;
             }, [d]);
+
+            // NEW: Scenario Comparison Data
+            const scenarioComparison = useMemo(() => {
+                const scenarios = ['worst', 'base', 'best'];
+                return scenarios.map(type => {
+                    let sData = JSON.parse(JSON.stringify(d)); // Clone current
+                    // Apply logic same as applyScenario function
+                    if (type === 'worst') { sData.targetBags = 14000; sData.paddyPrice = 13500; sData.growth = 0; sData.varParams.mktPercent = 18; } 
+                    else if (type === 'base') { sData.targetBags = 20000; sData.paddyPrice = 12000; sData.growth = 10; sData.varParams.mktPercent = 14; } 
+                    else if (type === 'best') { sData.targetBags = 25000; sData.paddyPrice = 11500; sData.growth = 15; sData.varParams.mktPercent = 12; }
+                    
+                    // We need to re-calculate minimal required fields for profit/cash
+                    // To avoid infinite loop or heavy calc, we just call calculateFinancials for each
+                    const res = calculateFinancials(sData);
+                    return { type, netProfit: res.netProfit, cashFinal: res.cfTotal.cashFinal };
+                });
+            }, [d]); // Recalc when d changes (base params might change)
+
+            // NEW: Ads Sensitivity Matrix (CVR x CTR => ROAS)
+            const adsMatrixData = useMemo(() => {
+                if (!c) return [];
+                const baseCPM = c.funnelMetrics.cpm || 150; // Fallback to 150 if 0
+                const basePrice = d.price;
+                const baseBasket = d.mktFunnel.basketSize;
+                
+                // Rows: CVR (Y-axis) -20%, Base, +20%
+                const cvrSteps = [0.8, 1.0, 1.2]; 
+                // Cols: CTR (X-axis) -20%, Base, +20%
+                const ctrSteps = [0.8, 1.0, 1.2];
+
+                const results = [];
+                cvrSteps.forEach(cvrMult => {
+                    const row = [];
+                    ctrSteps.forEach(ctrMult => {
+                        const simCVR = d.mktFunnel.cvr * cvrMult;
+                        const simCTR = d.mktFunnel.ctr * ctrMult;
+                        
+                        // Formula derivation:
+                        // ROAS = Revenue / Cost
+                        // Revenue per 1000 Imp = (1000 * CTR% * CVR% * Basket * Price)
+                        // Cost per 1000 Imp = CPM
+                        // ROAS = (1000 * (CTR/100) * (CVR/100) * Basket * Price) / CPM
+                        //      = (Basket * Price * CTR * CVR) / (CPM / 10)
+                        
+                        const simRoas = (baseBasket * basePrice * simCVR * simCTR) / (baseCPM / 10);
+                        
+                        row.push({
+                            cvrLabel: simCVR.toFixed(2) + '%',
+                            ctrLabel: simCTR.toFixed(2) + '%',
+                            roas: simRoas
+                        });
+                    });
+                    results.push(row);
+                });
+                return results;
+            }, [d, c]);
 
             useEffect(() => { 
                 const financials = calculateFinancials(d);
@@ -1372,11 +1478,13 @@
                                     <div className="input-row"><span className="text-sm">{t('elec')} ({d.varParams.elecRate} /{t('ton')})</span><div className="flex items-center gap-2"><input type="number" className="input-field w-16" value={d.varParams.elecRate} onChange={e=>up('varParams','elecRate',e.target.value)}/><span className="text-xs font-bold text-slate-600 min-w-[60px] text-right">{fmt(c.elecTotal)}</span></div></div>
                                     <div className="input-row"><span className="text-sm">{t('platform')} (%)</span><div className="flex items-center gap-2"><input type="number" className="input-field w-16" value={d.varParams.platformPercent} onChange={e=>up('varParams','platformPercent',e.target.value)}/><span className="text-xs font-bold text-slate-600 min-w-[60px] text-right">{fmt(c.platformTotal)}</span></div></div>
                                     <div className="input-row"><span className="text-sm">{t('marketing')} (%)</span><div className="flex items-center gap-2"><input type="number" className="input-field w-16" value={d.varParams.mktPercent} onChange={e=>up('varParams','mktPercent',e.target.value)}/><span className="text-xs font-bold text-slate-600 min-w-[60px] text-right">{fmt(c.mktTotal)}</span></div></div>
+                                    <div className="input-row"><span className="text-sm">{t('returnRate')}</span><div className="flex items-center gap-2"><input type="number" className="input-field w-16" value={d.varParams.returnRate} onChange={e=>up('varParams','returnRate',e.target.value)}/><span className="text-xs font-bold text-slate-600 min-w-[60px] text-right">-{fmt(c.refundTotal)}</span></div></div>
                                 </div>
                                 <div>
                                     <div className="text-xs font-bold text-slate-500 mb-1">{t('fixedParamTitle')}</div>
                                     <div className="input-row"><span className="text-sm">{t('maintenance')}</span><input type="number" className="input-field w-24" value={d.fixedParams.maintPercent} onChange={e=>up('fixedParams','maintPercent',e.target.value)} placeholder="% Machine"/></div>
                                     <div className="input-row"><span className="text-sm">{t('erp')}</span><input type="number" className="input-field w-24" value={d.fixedParams.erp} onChange={e=>up('fixedParams','erp',e.target.value)}/></div>
+                                    <div className="input-row"><span className="text-sm">{t('insurance')}</span><input type="number" className="input-field w-24" value={d.fixedParams.insurance} onChange={e=>up('fixedParams','insurance',e.target.value)}/></div>
                                     <div className="input-row"><span className="text-sm">{t('misc')}</span><input type="number" className="input-field w-24" value={d.fixedParams.other} onChange={e=>up('fixedParams','other',e.target.value)}/></div>
                                     <div className="input-row bg-yellow-50 p-1 rounded border border-yellow-100"><span className="text-sm font-bold text-yellow-800">{t('campaign')}</span><div className="font-bold text-yellow-700">{fmt(d.fixedParams.campaign)}</div></div>
                                 </div>
@@ -1442,6 +1550,28 @@
                                         <div className="font-bold text-md text-yellow-300">{fmtDec(c.roi)}%</div>
                                     </div>
                                 </div>
+                                
+                                {/* Scenario Comparison Table */}
+                                <div className="mt-3 pt-3 border-t border-slate-600">
+                                    <div className="text-xs text-slate-400 mb-2 font-bold">{t('scenComp')}</div>
+                                    <div className="grid grid-cols-4 text-xs gap-1 text-center">
+                                        <div className="text-slate-500">Metric</div>
+                                        <div className="text-red-300">{t('scenWorst')}</div>
+                                        <div className="text-blue-300">{t('scenBase')}</div>
+                                        <div className="text-green-300">{t('scenBest')}</div>
+                                        
+                                        <div className="text-left text-slate-300 pl-1">{t('scenProfit')}</div>
+                                        {scenarioComparison.map((s, i) => (
+                                            <div key={i} className={`font-bold ${s.netProfit > 0 ? 'text-white' : 'text-red-400'}`}>{fmt(s.netProfit/1000)}k</div>
+                                        ))}
+                                        
+                                        <div className="text-left text-slate-300 pl-1">{t('scenCash')}</div>
+                                        {scenarioComparison.map((s, i) => (
+                                            <div key={i} className={`font-bold ${s.cashFinal > 0 ? 'text-white' : 'text-red-400'}`}>{fmt(s.cashFinal/1000)}k</div>
+                                        ))}
+                                    </div>
+                                </div>
+
                                 <div className="mt-2 text-center text-xs text-slate-400">
                                     {t('payback')} <span className="text-white font-bold">{c.paybackMonth}</span> | 
                                     BEP: <span className="text-white font-bold">{fmt(c.bepUnits)}</span> {t('bag')}/{t('month')}
@@ -1524,6 +1654,7 @@
                                 <div className="card-body">
                                     <div className="flow-row"><span className="text-indigo-600 font-bold">{t('cashInflow')}</span><span>{fmt(c.revBreakdown.totalIn)}</span></div>
                                     <div className="flow-row flow-sub"><span>{t('salesGross')}</span><span>{fmt(c.revBreakdown.sales)}</span></div>
+                                    <div className="flow-row flow-sub"><span>{t('refundDeduction')}</span><span className="text-red-400">-{fmt(c.refundTotal)}</span></div>
                                     <div className="flow-row flow-sub"><span>- {t('byProductTitle')}</span><span>{fmt(c.revBreakdown.byProduct)}</span></div>
                                     <div className="flow-row flow-sub"><span>- Logistics</span><span>{fmt(c.revBreakdown.logistics)}</span></div>
                                     <div className="flow-row mt-2"><span className="text-red-600 font-bold">{t('vatObligation')}</span><span>-{fmt(c.revBreakdown.vat)}</span></div>
@@ -1539,6 +1670,7 @@
                                     <div className="bg-slate-50 rounded p-2 ml-6 my-1 border border-slate-100">
                                         <div className="flex justify-between text-[10px] text-slate-400"><span>• Campaign:</span><span>{fmt(c.revBreakdown.otherDetails.campaign)}</span></div>
                                         <div className="flex justify-between text-[10px] text-slate-400"><span>• ERP:</span><span>{fmt(c.revBreakdown.otherDetails.erp)}</span></div>
+                                        <div className="flex justify-between text-[10px] text-slate-400"><span>• Insurance:</span><span>{fmt(c.revBreakdown.otherDetails.insurance)}</span></div>
                                         <div className="flex justify-between text-[10px] text-slate-400"><span>• Misc:</span><span>{fmt(c.revBreakdown.otherDetails.misc)}</span></div>
                                         <div className="flex justify-between text-[10px] text-slate-400"><span>• Maintenance:</span><span>{fmt(c.revBreakdown.otherDetails.maintenance)}</span></div>
                                     </div>
@@ -1730,6 +1862,37 @@
                                             <span>{fmt(c.funnelMetrics.orders)}</span>
                                         </div>
                                     </div>
+
+                                    {/* Ads Efficiency Matrix */}
+                                    <div className="mt-4 pt-3 border-t border-indigo-200">
+                                        <div className="flex justify-between items-center mb-2">
+                                            <div className="text-xs font-bold text-indigo-800">{t('adsMatrixTitle')}</div>
+                                            <div className="text-[9px] text-slate-500">Y: {t('adsMatY')} | X: {t('adsMatX')}</div>
+                                        </div>
+                                        <table className="w-full matrix-table">
+                                            <thead>
+                                                <tr>
+                                                    <th className="bg-indigo-50 text-[9px] text-indigo-900">CVR \ CTR</th>
+                                                    {adsMatrixData[0] && adsMatrixData[0].map((cell, i) => (
+                                                        <th key={i} className="matrix-header text-[9px]">{cell.ctrLabel}</th>
+                                                    ))}
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {adsMatrixData.map((row, i) => (
+                                                    <tr key={i}>
+                                                        <td className="matrix-header text-[9px]">{row[0].cvrLabel}</td>
+                                                        {row.map((cell, j) => (
+                                                            <td key={j} className={`text-[10px] font-bold ${cell.roas < c.funnelMetrics.beRoas ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-700'}`}>
+                                                                {cell.roas.toFixed(1)}x
+                                                            </td>
+                                                        ))}
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                        <div className="text-[9px] text-center mt-1 text-slate-400">*สีแดง = ขาดทุน (ต่ำกว่า Breakeven {c.funnelMetrics.beRoas.toFixed(1)}x)</div>
+                                    </div>
                                 </div>
                             </div>
 
@@ -1738,7 +1901,7 @@
                         {/* --- BOTTOM --- */}
                         <div className="lg:col-span-12 space-y-6">
                              <div className="card">
-                                <div className="card-header"><div className="card-title text-slate-700">{t('detailedCashflow')}</div><div className="flex items-center gap-2 text-xs"><span className="text-slate-500">{t('monthlyGrowth')}</span><input type="number" className="border border-slate-300 rounded px-2 py-1 w-16 text-right" value={d.monthlyGrowth} onChange={e=>up('monthlyGrowth', null, e.target.value)} /><span className="text-slate-500">%</span><span className="ml-2 text-slate-400 font-bold bg-slate-100 px-2 py-1 rounded">Credit: {d.creditTerm}</span></div></div>
+                                <div className="card-header"><div className="card-title text-slate-700">{t('detailedCashflow')}</div><div className="flex items-center gap-2 text-xs"><span className="text-slate-500">{t('monthlyGrowth')}</span><input type="number" className="border border-slate-300 rounded px-2 py-1 w-16 text-right" value={d.monthlyGrowth} onChange={e=>up('monthlyGrowth', null, e.target.value)} /><span className="text-slate-500">%</span><span className="ml-2 text-slate-400 font-bold bg-slate-100 px-2 py-1 rounded">Credit: {d.creditTerm} Days</span></div></div>
                                 <div className="overflow-x-auto custom-scroll">
                                     <table className="w-full text-xs text-right border-collapse min-w-[800px]">
                                         <thead className="bg-slate-100 text-slate-600"><tr><th className="p-3 text-center">{t('month')}</th><th className="p-3 text-slate-400">{t('cfSales')}</th><th className="p-3 text-blue-700 font-bold">{t('cfInflow')}</th><th className="p-3 text-red-500">{t('cfExp')}</th><th className="p-3 text-orange-500">{t('cfVat')}</th><th className="p-3 text-blue-600">{t('cfOpCash')}</th><th className="p-3 font-bold text-green-700 bg-green-50">{t('cfBalance')}</th></tr></thead>
