@@ -51,9 +51,10 @@
         .input-field:focus { border-color: #2563eb; outline: none; ring: 2px solid #bfdbfe; }
         .input-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 4px 0; border-bottom: 1px dashed #f1f5f9; }
         
-        .hr-table th { text-align: left; font-size: 0.75rem; color: #64748b; padding-bottom: 4px; }
-        .hr-table td { padding: 4px 2px; vertical-align: middle; }
-        .hr-input { width: 100%; border: 1px solid #e2e8f0; border-radius: 4px; padding: 2px 4px; font-size: 0.8rem; text-align: right; }
+        /* Updated HR Table Styles for smaller text */
+        .hr-table th { text-align: left; font-size: 0.7rem; color: #64748b; padding-bottom: 4px; }
+        .hr-table td { padding: 2px 1px; vertical-align: middle; font-size: 0.7rem; }
+        .hr-input { width: 100%; border: 1px solid #e2e8f0; border-radius: 4px; padding: 1px 2px; font-size: 0.7rem; text-align: right; height: 24px; }
 
         .flow-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 0.85rem; }
         .flow-row.total { font-weight: 700; border-top: 1px solid #e2e8f0; margin-top: 4px; padding-top: 8px; }
@@ -135,16 +136,16 @@
         const App = () => {
             const [d, setD] = useState(() => {
                 try {
-                    const savedData = localStorage.getItem('morbSukFinancialData_v37'); // Version updated
+                    const savedData = localStorage.getItem('morbSukFinancialData_v38'); // Version updated
                     return savedData ? JSON.parse(savedData) : INITIAL;
                 } catch (e) { return INITIAL; }
             });
             const [c, setC] = useState(null); 
 
-            useEffect(() => { localStorage.setItem('morbSukFinancialData_v37', JSON.stringify(d)); }, [d]);
+            useEffect(() => { localStorage.setItem('morbSukFinancialData_v38', JSON.stringify(d)); }, [d]);
 
             const resetToDefault = () => {
-                if (confirm("Reset all data to default?")) { setD(INITIAL); localStorage.removeItem('morbSukFinancialData_v37'); }
+                if (confirm("Reset all data to default?")) { setD(INITIAL); localStorage.removeItem('morbSukFinancialData_v38'); }
             };
 
             const handlePrint = () => window.print();
@@ -209,7 +210,7 @@
                 const maintenanceCostMonthly = maintenanceCostYearly / 12;
 
                 const dayTarget = data.targetBags / 30;
-                const hourTarget = data.targetBags / 24; 
+                const hourTarget = dayTarget / 8; 
                 const riceRev = data.targetBags * data.price;
                 
                 const paddyTons = (data.targetBags * 5) / (data.yield/100) / 1000;
@@ -258,6 +259,15 @@
                 const riceCostUnit = (5 / (data.yield/100)) * (data.paddyPrice/1000);
                 const matCostUnit = riceCostUnit + data.unit.bag + data.unit.sticker;
 
+                // Pre-calculate accrued revenue for 24 months (to handle lag overlap for projection)
+                const accruedRev = [];
+                for(let k=1; k<=24; k++) {
+                   const growthFactor = Math.pow(1 + data.monthlyGrowth/100, k - 1);
+                   accruedRev.push(baseRev * growthFactor);
+                }
+                // Add dummy 0 at index 0 for 1-based index access convenience if needed, but array is 0-based.
+                const dailyRevs = [0, ...accruedRev].map(r => r/30); // Index 1 = Month 1 daily rev
+
                 // Cashflow Loop
                 const cf = [];
                 let runningCash = workingCap; 
@@ -269,31 +279,55 @@
                 let remainingLoanPrincipal = data.loan.amount;
                 const monthlyPrincipalPayment = data.loan.amount > 0 ? data.loan.amount / (data.loan.term * 12) : 0; // Simplified equal principal
 
-                // Credit Term Logic (Cash Inflow Lag)
-                // Use Round to treat 20 days as 1 month lag (Conservative)
-                const creditTermMonths = Math.round((data.creditTerm || 0) / 30); 
-                let previousMonthsRev = [0, 0, 0]; // Buffer for lagged revenue
+                const creditTermDays = parseInt(data.creditTerm || 0);
 
                 for(let i=1; i<=12; i++) {
-                    const growthFactor = Math.pow(1 + data.monthlyGrowth/100, i - 1);
+                    const mRev = accruedRev[i-1]; // Accrued Revenue (Sales)
                     
-                    const mRev = baseRev * growthFactor; // Accrued Revenue (Sales)
+                    // --- Precise Daily Sales Credit Term Logic ---
+                    // Cash received in Month 'i' (Days (i-1)*30+1 to i*30)
+                    // comes from sales made 'creditTermDays' ago.
+                    // Sales Day 'd' (global day count 1..360+) brings cash on Day 'd + term'.
+                    // We need to sum daily revenue for all sales days 'd' where (d + term) falls in current month i.
+                    // (d + term) >= currentMonthStartDay  AND  (d + term) <= currentMonthEndDay
+                    // So d >= currentMonthStartDay - term  AND  d <= currentMonthEndDay - term
                     
-                    // Handle Credit Term for Cash Inflow
                     let cashInflow = 0;
-                    if (creditTermMonths === 0) {
-                        cashInflow = mRev;
-                    } else {
-                        // Push current sales to queue
-                        // Simple 1 month lag: Month 1 sales comes in Month 2.
-                        if (i > creditTermMonths) {
-                            const prevGrowthFactor = Math.pow(1 + data.monthlyGrowth/100, i - 1 - creditTermMonths);
-                            cashInflow = baseRev * prevGrowthFactor;
-                        } else {
-                            cashInflow = 0; // Waiting for credit term
+                    const currentMonthStartCashDay = (i-1)*30 + 1;
+                    const currentMonthEndCashDay = i*30;
+
+                    const startSalesDay = currentMonthStartCashDay - creditTermDays;
+                    const endSalesDay = currentMonthEndCashDay - creditTermDays;
+
+                    // Iterate through the sales days range that contributes to this month's cash
+                    // Sales days can be <= 0 (pre-operation, no sales) or > 0.
+                    
+                    // Optimization: We can calculate overlap with Month 1, Month 2, etc. instead of looping days.
+                    // But looping ~30 days is cheap.
+                    
+                    // Simpler logic:
+                    // Overlap with Month M (Sales Days (M-1)*30+1 to M*30):
+                    // Range [startSalesDay, endSalesDay] intersects with [(M-1)*30+1, M*30]
+                    
+                    // Max lookback month is limited. If term is 60, we look back ~2-3 months.
+                    const maxLookBack = Math.ceil(creditTermDays/30) + 1;
+                    const startSourceM = Math.max(1, i - maxLookBack);
+                    
+                    for(let srcM = startSourceM; srcM <= i; srcM++) {
+                        const mStart = (srcM-1)*30 + 1;
+                        const mEnd = srcM*30;
+                        
+                        const overlapStart = Math.max(startSalesDay, mStart);
+                        const overlapEnd = Math.min(endSalesDay, mEnd);
+                        
+                        if (overlapEnd >= overlapStart) {
+                            const daysCount = overlapEnd - overlapStart + 1;
+                            cashInflow += daysCount * dailyRevs[srcM]; // dailyRevs index 1 is Month 1
                         }
                     }
+                    // ----------------------------------------------------
 
+                    const growthFactor = Math.pow(1 + data.monthlyGrowth/100, i - 1);
                     const mRice = riceTotal * growthFactor;
                     const mVatableVar = (packTotal + elecTotal + platformTotal + mktTotal) * growthFactor;
                     const mSalary = salaryTotal;
@@ -374,10 +408,12 @@
                 });
 
                 const cfTotal = cfFinal.reduce((acc, cur) => ({
-                    rev: acc.rev + cur.rev, expCash: acc.expCash + cur.expCash, netOpCash: acc.netOpCash + cur.netOpCash, 
+                    rev: acc.rev + cur.rev, 
+                    revCashIn: (acc.revCashIn || 0) + cur.revCashIn, // Added sum for Cash In
+                    expCash: acc.expCash + cur.expCash, netOpCash: acc.netOpCash + cur.netOpCash, 
                     tax: acc.tax + cur.tax, interest: acc.interest + cur.interest, principal: acc.principal + cur.principal, 
                     vatPaid: acc.vatPaid + cur.vatPaid
-                }), { rev: 0, expCash: 0, netOpCash: 0, tax: 0, interest: 0, principal: 0, vatPaid: 0 });
+                }), { rev: 0, revCashIn: 0, expCash: 0, netOpCash: 0, tax: 0, interest: 0, principal: 0, vatPaid: 0 });
                 cfTotal.cashFinal = cfFinal[11].cashFinal;
 
                 const annualNetProfitAfterAll = taxableIncome - totalTaxEst; 
@@ -585,7 +621,7 @@
                     <header className="header-bar sticky top-0 z-50 flex flex-col md:flex-row justify-between items-center gap-4">
                         <div>
                             <h1 className="text-xl font-bold tracking-tight">Thai Fortunate Innovation</h1>
-                            <p className="text-xs text-slate-400">Financial Strategy Simulator (Professional V3)</p>
+                            <p className="text-xs text-slate-400">Financial Strategy Simulator (Ultimate VAT Fixed)</p>
                         </div>
                         <div className="flex items-center gap-2 header-controls">
                             <span className="text-xs text-slate-400 font-bold mr-1">SCENARIO:</span>
@@ -663,11 +699,11 @@
                                         <div className="input-group"><label className="input-label">เป้าขาย (ถุง/เดือน)</label><input type="number" className="input-field text-lg font-bold text-blue-700 border-blue-300" value={d.targetBags} onChange={e=>up('targetBags',null,e.target.value)}/></div>
                                         <div className="input-group"><label className="input-label">ราคาขาย (บาท/ถุง)</label><input type="number" className="input-field text-lg" value={d.price} onChange={e=>up('price',null,e.target.value)}/></div>
                                     </div>
-                                    <div className="input-group bg-yellow-50 p-2 rounded border border-yellow-200"><label className="input-label text-yellow-800 font-bold">Credit Term (ระยะเวลาเก็บหนี้)</label><select className="input-field bg-white text-yellow-900" value={d.creditTerm} onChange={e=>up('creditTerm',null,e.target.value)}><option value="0">ขายสด (0 วัน)</option><option value="20">เครดิต 20 วัน</option><option value="30">เครดิต 30 วัน</option><option value="60">เครดิต 60 วัน</option></select><div className="text-[10px] text-yellow-600 mt-1">*เลือกเครดิตนานขึ้น เงินสดจะเข้าช้าลง</div></div>
+                                    <div className="input-group bg-yellow-50 p-2 rounded border border-yellow-200"><label className="input-label text-yellow-800 font-bold">Credit Term (ระยะเวลาเก็บหนี้)</label><select className="input-field bg-white text-yellow-900" value={d.creditTerm} onChange={e=>up('creditTerm',null,e.target.value)}><option value="0">ขายสด (0 วัน)</option><option value="15">TikTok Shop (15 วัน)</option><option value="20">เครดิต 20 วัน</option><option value="30">เครดิต 30 วัน</option><option value="60">เครดิต 60 วัน</option></select><div className="text-[10px] text-yellow-600 mt-1">*เลือกเครดิตนานขึ้น เงินสดจะเข้าช้าลง</div></div>
                                     <div className="flex justify-between bg-slate-50 p-3 rounded mt-2 border border-slate-100">
                                         <div className="text-center"><div className="text-xs text-slate-500">ยอดขายรวม</div><div className="font-bold text-slate-700">{fmt(c.grossRev)}</div></div>
                                         <div className="text-center"><div className="text-xs text-slate-500">เป้าต่อวัน</div><div className="font-bold text-slate-700">{fmt(c.dayTarget)}</div></div>
-                                        <div className="text-center"><div className="text-xs text-slate-500">เป้าต่อ ชม.</div><div className="font-bold text-slate-700">{fmtDec(c.hourTarget)}</div></div>
+                                        <div className="text-center"><div className="text-xs text-slate-500">เป้าต่อ ชม. (8h)</div><div className="font-bold text-slate-700">{fmtDec(c.hourTarget)}</div></div>
                                     </div>
                                 </div>
                             </div>
@@ -832,11 +868,11 @@
                                 <div className="card-header"><div className="card-title text-slate-700">Detailed Monthly Cashflow (Year 1)</div><div className="flex items-center gap-2 text-xs"><span className="text-slate-500">Monthly Growth:</span><input type="number" className="border border-slate-300 rounded px-2 py-1 w-16 text-right" value={d.monthlyGrowth} onChange={e=>up('monthlyGrowth', null, e.target.value)} /><span className="text-slate-500">%</span></div></div>
                                 <div className="overflow-x-auto custom-scroll">
                                     <table className="w-full text-xs text-right border-collapse min-w-[800px]">
-                                        <thead className="bg-slate-100 text-slate-600"><tr><th className="p-3 text-center">Month</th><th className="p-3">Cash Inflow (Rev)</th><th className="p-3 text-red-500">Expenses (Cash)</th><th className="p-3 text-orange-500">Net VAT Paid</th><th className="p-3 text-blue-600">Op. Cash (EBITDA)</th><th className="p-3 font-bold text-green-700 bg-green-50">Cash Balance</th></tr></thead>
+                                        <thead className="bg-slate-100 text-slate-600"><tr><th className="p-3 text-center">Month</th><th className="p-3 text-slate-400">Sales (Booking)</th><th className="p-3 text-blue-700 font-bold">Cash Inflow (Actual)</th><th className="p-3 text-red-500">Expenses (Cash)</th><th className="p-3 text-orange-500">Net VAT Paid</th><th className="p-3 text-blue-600">Op. Cash (EBITDA)</th><th className="p-3 font-bold text-green-700 bg-green-50">Cash Balance</th></tr></thead>
                                         <tbody>
-                                            <tr className="bg-slate-50 border-b border-slate-200"><td className="p-3 text-center font-bold text-slate-500">0 (Start)</td><td className="p-3" colSpan="4"></td><td className="p-3 font-bold text-slate-700 bg-green-50/50">{fmt(c.workingCap)}</td></tr>
-                                            {c.cf.map((row) => (<tr key={row.m} className={`border-b hover:bg-slate-50 ${row.cashFinal < 0 ? 'bg-red-50':''}`}><td className="p-3 text-center font-bold text-slate-400">{row.m}</td><td className="p-3">{fmt(row.revCashIn)}</td><td className="p-3 text-red-400">{fmt(row.expCash)}</td><td className={`p-3 font-bold ${row.vatPaid > 0 ? 'text-orange-500' : 'text-green-500'}`}>{fmt(row.vatPaid)}</td><td className="p-3 font-bold text-blue-600">{fmt(row.netOpCash)}</td><td className={`p-3 font-bold ${row.cashFinal < 0 ? 'text-red-600':'text-green-700 bg-green-50/30'}`}>{fmt(row.cashFinal)}</td></tr>))}
-                                            <tr className="bg-slate-200 font-bold border-t-2 border-slate-400 text-slate-800"><td className="p-3 text-center">รวมทั้งปี (Total)</td><td className="p-3">{fmt(c.cfTotal.rev)}</td><td className="p-3 text-red-600">{fmt(c.cfTotal.expCash)}</td><td className="p-3 text-orange-600">{fmt(c.cfTotal.vatPaid)}</td><td className="p-3 text-blue-800">{fmt(c.cfTotal.netOpCash)}</td><td className="p-3 bg-green-100 text-green-900">{fmt(c.cfTotal.cashFinal)}</td></tr>
+                                            <tr className="bg-slate-50 border-b border-slate-200"><td className="p-3 text-center font-bold text-slate-500">0 (Start)</td><td className="p-3" colSpan="5"></td><td className="p-3 font-bold text-slate-700 bg-green-50/50">{fmt(c.workingCap)}</td></tr>
+                                            {c.cf.map((row) => (<tr key={row.m} className={`border-b hover:bg-slate-50 ${row.cashFinal < 0 ? 'bg-red-50':''}`}><td className="p-3 text-center font-bold text-slate-400">{row.m}</td><td className="p-3 text-slate-400">{fmt(row.rev)}</td><td className="p-3 font-bold text-blue-700">{fmt(row.revCashIn)}</td><td className="p-3 text-red-400">{fmt(row.expCash)}</td><td className={`p-3 font-bold ${row.vatPaid > 0 ? 'text-orange-500' : 'text-green-500'}`}>{fmt(row.vatPaid)}</td><td className="p-3 font-bold text-blue-600">{fmt(row.netOpCash)}</td><td className={`p-3 font-bold ${row.cashFinal < 0 ? 'text-red-600':'text-green-700 bg-green-50/30'}`}>{fmt(row.cashFinal)}</td></tr>))}
+                                            <tr className="bg-slate-200 font-bold border-t-2 border-slate-400 text-slate-800"><td className="p-3 text-center">รวมทั้งปี (Total)</td><td className="p-3 text-slate-600">{fmt(c.cfTotal.rev)}</td><td className="p-3 text-blue-800">{fmt(c.cfTotal.revCashIn)}</td><td className="p-3 text-red-600">{fmt(c.cfTotal.expCash)}</td><td className="p-3 text-orange-600">{fmt(c.cfTotal.vatPaid)}</td><td className="p-3 text-blue-800">{fmt(c.cfTotal.netOpCash)}</td><td className="p-3 bg-green-100 text-green-900">{fmt(c.cfTotal.cashFinal)}</td></tr>
                                         </tbody>
                                     </table>
                                     <div className="mt-4 grid grid-cols-1 md:grid-cols-4 gap-4 text-center">
