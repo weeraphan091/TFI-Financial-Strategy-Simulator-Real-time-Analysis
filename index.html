@@ -258,6 +258,36 @@
                 financialGlossary: "📚 คำอธิบายตัวย่อทางการเงิน (Financial Glossary)",
                 marketingGlossary: "📢 คำอธิบายตัวย่อทางการตลาด & โฆษณา (Marketing & Ads Glossary)",
                 
+                // --- Cash Flow Table Headers ---
+                cfSales: "ยอดขาย (Booking)",
+                cfInflow: "เงินสดรับจริง",
+                cfExp: "รายจ่าย (Cash)",
+                cfVat: "นำส่ง VAT",
+                cfOpCash: "กำไรเงินสด (EBITDA)",
+                cfBalance: "เงินสดคงเหลือ",
+                start0: "0 (เริ่ม)",
+
+                // --- 5-Year Projection Headers ---
+                pyYear: "ปีที่",
+                pyRev: "รายได้รวม",
+                pyExp: "รายจ่าย (Cash)",
+                pyEbitda: "EBITDA",
+                pyDep: "ค่าเสื่อม",
+                pyTax: "ภาษีจ่าย",
+                pyNet: "กำไรสุทธิ",
+                pyDiv: "ปันผล",
+                pyCashEnd: "เงินสดปลายปี",
+
+                // --- Items (By-products & Campaigns) ---
+                prod_husk: "แกลบ",
+                prod_fine: "รำละเอียด",
+                prod_rough: "รำหยาบ",
+                prod_broken: "ข้าวหัก",
+                prod_waste: "ของเสีย",
+                camp_gold1: "ลุ้นทอง 1 สลึง",
+                camp_gold2: "ลุ้นทอง ครึ่งสลึง",
+                camp_free: "กินข้าวฟรี 1 ปี",
+
                 // AI Builders
                 meaning: "ความหมาย",
                 situation: "สถานการณ์",
@@ -488,6 +518,36 @@
                 financialGlossary: "📚 财务缩略语解释 (Financial Glossary)",
                 marketingGlossary: "📢 营销与广告缩略语解释 (Marketing & Ads Glossary)",
 
+                // --- Cash Flow Table Headers ---
+                cfSales: "销售额 (预订)",
+                cfInflow: "实际现金流入",
+                cfExp: "现金支出",
+                cfVat: "增值税净额",
+                cfOpCash: "运营现金 (EBITDA)",
+                cfBalance: "现金余额",
+                start0: "0 (初始)",
+
+                // --- 5-Year Projection Headers ---
+                pyYear: "年份",
+                pyRev: "总收入",
+                pyExp: "运营支出 (现金)",
+                pyEbitda: "EBITDA",
+                pyDep: "折旧",
+                pyTax: "所得税",
+                pyNet: "净利润",
+                pyDiv: "分红",
+                pyCashEnd: "期末现金",
+
+                // --- Items (By-products & Campaigns) ---
+                prod_husk: "稻壳",
+                prod_fine: "细糠",
+                prod_rough: "粗糠",
+                prod_broken: "碎米",
+                prod_waste: "废料",
+                camp_gold1: "赢取黄金 1 钱",
+                camp_gold2: "赢取黄金 0.5 钱",
+                camp_free: "免费大米 1 年",
+
                 // AI Builders
                 meaning: "含义",
                 situation: "情况",
@@ -583,11 +643,11 @@
             creditTerm: 0, 
             yield: 60, paddyPrice: 12000,
             byProducts: [
-                { name: "แกลบ (Rice Husk)", percent: 23, price: 1500 },
-                { name: "รำละเอียด (Fine Bran)", percent: 10, price: 9000 },
-                { name: "รำหยาบ (Rough Bran)", percent: 2, price: 9000 },
-                { name: "ข้าวหัก (Broken Rice)", percent: 2, price: 14000 },
-                { name: "ของเสีย (Waste)", percent: 1, price: 0 },
+                { id: "prod_husk", name: "แกลบ", percent: 23, price: 1500 },
+                { id: "prod_fine", name: "รำละเอียด", percent: 10, price: 9000 },
+                { id: "prod_rough", name: "รำหยาบ", percent: 2, price: 9000 },
+                { id: "prod_broken", name: "ข้าวหัก", percent: 2, price: 14000 },
+                { id: "prod_waste", name: "ของเสีย", percent: 1, price: 0 },
             ],
             unit: { bag: 6.5, sticker: 2.0 },
             hr: [
@@ -601,9 +661,9 @@
             fixedParams: { erp: 9000, campaign: 41000, other: 10000, maintPercent: 2 },
             // Campaign Breakdown Details
             campaignDetails: [
-                { name: "ลุ้นทอง 1 สลึง (Gold 1 Salung)", qty: 1, costPerUnit: 16500 },
-                { name: "ลุ้นทอง ครึ่งสลึง (Gold 0.5 Salung)", qty: 2, costPerUnit: 8500 },
-                { name: "กินข้าวฟรี 1 ปี (Free Rice 1 Year)", qty: 3, costPerUnit: 2500 }
+                { id: "camp_gold1", name: "ลุ้นทอง 1 สลึง", qty: 1, costPerUnit: 16500 },
+                { id: "camp_gold2", name: "ลุ้นทอง ครึ่งสลึง", qty: 2, costPerUnit: 8500 },
+                { id: "camp_free", name: "กินข้าวฟรี 1 ปี", qty: 3, costPerUnit: 2500 }
             ],
             logistics: { active: true, percent: 50, profit: 5 },
             dividend: { payout: 50, founders: 3 },
@@ -635,6 +695,11 @@
                     const savedData = localStorage.getItem('morbSukFinancialData_v42'); 
                     let parsed = savedData ? JSON.parse(savedData) : INITIAL;
                     if (!parsed.campaignDetails) parsed.campaignDetails = INITIAL.campaignDetails;
+                    
+                    // 3. Migrate old data to have IDs for translation if missing
+                    parsed.byProducts = parsed.byProducts.map((p, i) => (!p.id ? { ...p, id: INITIAL.byProducts[i]?.id } : p));
+                    parsed.campaignDetails = parsed.campaignDetails.map((c, i) => (!c.id ? { ...c, id: INITIAL.campaignDetails[i]?.id } : c));
+
                     return parsed;
                 } catch (e) { 
                     console.error("Data load error:", e);
@@ -705,13 +770,20 @@
 
             const up = (k, sk, v) => setD(p => ({...p, [k]: sk ? {...p[k], [sk]: +v} : +v}));
             const upArr = (k, i, f, v) => {
-                const n = [...d[k]]; n[i][f] = f==='name'||f==='role'?v:+v; setD(p=>({...p, [k]: n}));
+                // If user edits name, remove ID so translation stops overriding user input
+                const n = [...d[k]]; 
+                if (f === 'name') delete n[i].id;
+                n[i][f] = f==='name'||f==='role'?v:+v; 
+                setD(p=>({...p, [k]: n}));
             };
             const upFunnel = (k, v) => setD(p => ({...p, mktFunnel: {...p.mktFunnel, [k]: +v}}));
 
             const upCampaign = (idx, field, val) => {
                 setD(prev => {
                     const newDetails = [...prev.campaignDetails];
+                    // If user edits name, remove ID
+                    if (field === 'name') delete newDetails[idx].id;
+                    
                     newDetails[idx][field] = field === 'name' ? val : +val;
                     
                     const newTotal = newDetails.reduce((sum, item) => sum + (item.qty * item.costPerUnit), 0);
@@ -1258,7 +1330,7 @@
                                         <tbody>
                                             {d.campaignDetails.map((item, i) => (
                                                 <tr key={i} className="border-b border-slate-100">
-                                                    <td className="p-1"><input className="w-full bg-transparent outline-none focus:text-blue-600" value={item.name} onChange={e=>upCampaign(i,'name',e.target.value)}/></td>
+                                                    <td className="p-1"><input className="w-full bg-transparent outline-none focus:text-blue-600" value={item.id ? t(item.id) : item.name} onChange={e=>upCampaign(i,'name',e.target.value)}/></td>
                                                     <td className="p-1"><input type="number" className="w-8 text-center bg-slate-50 border rounded p-0.5 outline-none focus:border-blue-300" value={item.qty} onChange={e=>upCampaign(i,'qty',e.target.value)}/></td>
                                                     <td className="p-1"><input type="number" className="w-12 text-right bg-slate-50 border rounded p-0.5 outline-none focus:border-blue-300" value={item.costPerUnit} onChange={e=>upCampaign(i,'costPerUnit',e.target.value)}/></td>
                                                     <td className="p-1 text-right font-medium text-slate-600">{fmt(item.qty * item.costPerUnit)}</td>
@@ -1330,7 +1402,7 @@
                                         <tbody>
                                             {c.byProductsCalc.map((item, i) => (
                                                 <tr key={i} className="border-b border-dashed border-slate-100 hover:bg-orange-50/30">
-                                                    <td className="p-1">{item.name}</td>
+                                                    <td className="p-1">{item.id ? t(item.id) : item.name}</td>
                                                     <td className="p-1 text-center text-slate-400">
                                                         <input type="number" className="input-field text-xs p-1 h-6 w-full text-center" value={item.percent} onChange={e=>upArr('byProducts',i,'percent',e.target.value)}/>
                                                     </td>
@@ -1563,9 +1635,9 @@
                                 <div className="card-header"><div className="card-title text-slate-700">{t('detailedCashflow')}</div><div className="flex items-center gap-2 text-xs"><span className="text-slate-500">{t('monthlyGrowth')}</span><input type="number" className="border border-slate-300 rounded px-2 py-1 w-16 text-right" value={d.monthlyGrowth} onChange={e=>up('monthlyGrowth', null, e.target.value)} /><span className="text-slate-500">%</span><span className="ml-2 text-slate-400 font-bold bg-slate-100 px-2 py-1 rounded">Credit: {d.creditTerm}</span></div></div>
                                 <div className="overflow-x-auto custom-scroll">
                                     <table className="w-full text-xs text-right border-collapse min-w-[800px]">
-                                        <thead className="bg-slate-100 text-slate-600"><tr><th className="p-3 text-center">{t('month')}</th><th className="p-3 text-slate-400">Sales (Booking)</th><th className="p-3 text-blue-700 font-bold">Cash Inflow (Actual)</th><th className="p-3 text-red-500">Expenses (Cash)</th><th className="p-3 text-orange-500">Net VAT Paid</th><th className="p-3 text-blue-600">Op. Cash (EBITDA)</th><th className="p-3 font-bold text-green-700 bg-green-50">Cash Balance</th></tr></thead>
+                                        <thead className="bg-slate-100 text-slate-600"><tr><th className="p-3 text-center">{t('month')}</th><th className="p-3 text-slate-400">{t('cfSales')}</th><th className="p-3 text-blue-700 font-bold">{t('cfInflow')}</th><th className="p-3 text-red-500">{t('cfExp')}</th><th className="p-3 text-orange-500">{t('cfVat')}</th><th className="p-3 text-blue-600">{t('cfOpCash')}</th><th className="p-3 font-bold text-green-700 bg-green-50">{t('cfBalance')}</th></tr></thead>
                                         <tbody>
-                                            <tr className="bg-slate-50 border-b border-slate-200"><td className="p-3 text-center font-bold text-slate-500">0 (Start)</td><td className="p-3" colSpan="5"></td><td className="p-3 font-bold text-slate-700 bg-green-50/50">{fmt(c.workingCap)}</td></tr>
+                                            <tr className="bg-slate-50 border-b border-slate-200"><td className="p-3 text-center font-bold text-slate-500">{t('start0')}</td><td className="p-3" colSpan="5"></td><td className="p-3 font-bold text-slate-700 bg-green-50/50">{fmt(c.workingCap)}</td></tr>
                                             {c.cf.map((row) => (<tr key={row.m} className={`border-b hover:bg-slate-50 ${row.cashFinal < 0 ? 'bg-red-50':''}`}><td className="p-3 text-center font-bold text-slate-400">{row.m}</td><td className="p-3 text-slate-400">{fmt(row.rev)}</td><td className="p-3 font-bold text-blue-700">{fmt(row.revCashIn)}</td><td className="p-3 text-red-400">{fmt(row.expCash)}</td><td className={`p-3 font-bold ${row.vatPaid > 0 ? 'text-orange-500' : 'text-green-500'}`}>{fmt(row.vatPaid)}</td><td className="p-3 font-bold text-blue-600">{fmt(row.netOpCash)}</td><td className={`p-3 font-bold ${row.cashFinal < 0 ? 'text-red-600':'text-green-700 bg-green-50/30'}`}>{fmt(row.cashFinal)}</td></tr>))}
                                             <tr className="bg-slate-200 font-bold border-t-2 border-slate-400 text-slate-800"><td className="p-3 text-center">{t('total')}</td><td className="p-3 text-slate-600">{fmt(c.cfTotal.rev)}</td><td className="p-3 text-blue-800">{fmt(c.cfTotal.revCashIn)}</td><td className="p-3 text-red-600">{fmt(c.cfTotal.expCash)}</td><td className="p-3 text-orange-600">{fmt(c.cfTotal.vatPaid)}</td><td className="p-3 text-blue-800">{fmt(c.cfTotal.netOpCash)}</td><td className="p-3 bg-green-100 text-green-900">{fmt(c.cfTotal.cashFinal)}</td></tr>
                                         </tbody>
@@ -1631,7 +1703,7 @@
                             <div className="card">
                                 <div className="card-header"><div className="card-title">{t('projectionTitle')}</div><div className="flex gap-4 text-xs items-center"><div className="flex items-center gap-1"><span>Growth:</span><input className="w-12 border rounded text-center" value={d.growth} onChange={e=>up('growth',null,e.target.value)}/>%</div><div className="flex items-center gap-1"><span>Inflation:</span><input className="w-12 border rounded text-center" value={d.inflation} onChange={e=>up('inflation',null,e.target.value)}/>%</div><div className="flex items-center gap-1 font-bold text-blue-600"><span>Discount Rate:</span><input className="w-12 border rounded text-center" value={d.discountRate} onChange={e=>up('discountRate',null,e.target.value)}/>%</div></div></div>
                                 <div className="overflow-x-auto custom-scroll mb-2">
-                                    <table className="w-full text-xs text-right border-collapse min-w-[800px]"><thead className="bg-indigo-900 text-white"><tr><th className="p-3 text-center">Year</th><th className="p-3">Revenue</th><th className="p-3 text-red-300">Op. Expense (Cash)</th><th className="p-3 font-bold text-yellow-300">EBITDA</th><th className="p-3 text-slate-300">Depreciation</th><th className="p-3 text-orange-300">Tax Expense</th><th className="p-3 font-bold text-blue-300 bg-indigo-800">Net Profit</th><th className="p-3 text-green-300">Dividend</th><th className="p-3 font-bold text-green-400 bg-indigo-950">Cash Balance (End)</th></tr></thead>
+                                    <table className="w-full text-xs text-right border-collapse min-w-[800px]"><thead className="bg-indigo-900 text-white"><tr><th className="p-3 text-center">{t('pyYear')}</th><th className="p-3">{t('pyRev')}</th><th className="p-3 text-red-300">{t('pyExp')}</th><th className="p-3 font-bold text-yellow-300">{t('pyEbitda')}</th><th className="p-3 text-slate-300">{t('pyDep')}</th><th className="p-3 text-orange-300">{t('pyTax')}</th><th className="p-3 font-bold text-blue-300 bg-indigo-800">{t('pyNet')}</th><th className="p-3 text-green-300">{t('pyDiv')}</th><th className="p-3 font-bold text-green-400 bg-indigo-950">{t('pyCashEnd')}</th></tr></thead>
                                     <tbody>{projection.data.map((y,i) => (<tr key={i} className="border-b last:border-0 hover:bg-indigo-50"><td className="p-3 text-center font-bold text-indigo-900 bg-gray-50">{y.y}</td><td className="p-3 font-medium">{fmt(y.rev)}</td><td className="p-3 text-red-600">{fmt(y.exp)}</td><td className="p-3 font-bold text-yellow-700 bg-yellow-50">{fmt(y.ebitda)}</td><td className="p-3 text-slate-500">{fmt(y.dep)}</td><td className="p-3 text-orange-600">{fmt(y.tax)}{y.taxSaving > 0 && <div className="text-[9px] text-green-500">(Save {fmt(y.taxSaving)})</div>}</td><td className="p-3 font-bold text-blue-700 bg-blue-50">{fmt(y.net)}</td><td className="p-3 text-green-700">{fmt(y.div)}</td><td className="p-3 font-bold text-green-800 bg-green-100">{fmt(y.cash)}</td></tr>))}</tbody></table>
                                 </div>
                                 <div className="p-3 bg-blue-50 border-t flex justify-between items-center">
