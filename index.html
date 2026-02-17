@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Thai Fortunate Innovation - Financial Strategy Simulator (Ultimate VAT Fixed)</title>
+    
+    <!-- Libraries -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/prop-types/prop-types.min.js"></script>
+    <script src="https://unpkg.com/recharts@2.10.3/umd/Recharts.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#0f172a',
+                        secondary: '#334155',
+                        accent: '#2563eb',
+                        bg: '#f8fafc'
+                    },
+                    fontFamily: {
+                        sans: ['Prompt', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body { background-color: #f1f5f9; color: #1e293b; }
+        .app-container { min-height: 100vh; padding-bottom: 40px; }
+        .header-bar { background: #0f172a; color: white; padding: 16px 24px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+        
+        .card { background: white; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border: 1px solid #e2e8f0; overflow: hidden; margin-bottom: 16px; transition: transform 0.2s; }
+        .card:hover { border-color: #cbd5e1; }
+        .card-header { background: #f8fafc; padding: 10px 16px; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: space-between; }
+        .card-title { font-weight: 600; color: #334155; font-size: 0.95rem; display: flex; align-items: center; gap: 8px; }
+        .card-body { padding: 16px; }
+
+        .input-group { margin-bottom: 8px; }
+        .input-label { font-size: 0.85rem; color: #64748b; display: block; margin-bottom: 4px; }
+        .input-field { width: 100%; border: 1px solid #cbd5e1; border-radius: 6px; padding: 4px 10px; font-size: 0.9rem; text-align: right; transition: all 0.2s; color: #0f172a; font-weight: 500; }
+        .input-field:focus { border-color: #2563eb; outline: none; ring: 2px solid #bfdbfe; }
+        .input-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 4px 0; border-bottom: 1px dashed #f1f5f9; }
+        
+        .hr-table th { text-align: left; font-size: 0.75rem; color: #64748b; padding-bottom: 4px; }
+        .hr-table td { padding: 2px 0; }
+        .hr-input { width: 100%; border: 1px solid #e2e8f0; border-radius: 4px; padding: 2px 4px; font-size: 0.8rem; text-align: right; }
+
+        .flow-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 0.85rem; }
+        .flow-row.total { font-weight: 700; border-top: 1px solid #e2e8f0; margin-top: 4px; padding-top: 8px; }
+        .flow-sub { padding-left: 12px; color: #64748b; font-size: 0.8rem; }
+
+        .scenario-btn { padding: 4px 12px; font-size: 0.75rem; border-radius: 20px; cursor: pointer; border: 1px solid transparent; transition: all 0.2s; }
+        .scenario-btn.active { font-weight: bold; transform: scale(1.05); }
+
+        .matrix-table th, .matrix-table td { border: 1px solid #e2e8f0; padding: 6px; text-align: center; font-size: 0.75rem; }
+        .matrix-header { background: #f1f5f9; font-weight: 600; color: #475569; }
+
+        @media print {
+            body { background-color: white; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            .header-bar { padding: 10px; background: white !important; color: black !important; box-shadow: none; border-bottom: 2px solid #000; }
+            .header-bar h1 { font-size: 1.5rem; color: #000; }
+            .header-bar p { color: #666; }
+            .header-controls, .scenario-btn, .print-btn-hide, .toggle-switch-container { display: none !important; }
+            .card { box-shadow: none; border: 1px solid #ccc; break-inside: avoid; margin-bottom: 10px; }
+            .card-header { background: #eee !important; color: #000; border-bottom: 1px solid #aaa; }
+            .input-field { border: none; background: transparent; padding: 0; text-align: right; font-weight: bold; }
+            .input-group, .input-row { border-bottom: 1px solid #eee; }
+            input[type=range] { display: none; }
+            .app-container { padding-bottom: 0; }
+            .lg\:col-span-3, .lg\:col-span-5, .lg\:col-span-4 { width: 100% !important; display: block; }
+            .bg-slate-800 { background-color: #fff !important; color: #000 !important; border: 2px solid #000; }
+            .bg-slate-800 .text-white { color: #000 !important; }
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useMemo } = React;
+        const { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, AreaChart, Area, CartesianGrid, PieChart, Pie, Cell, Legend, ComposedChart, Line, ReferenceLine } = Recharts;
+
+        const fmt = (n) => new Intl.NumberFormat('th-TH', { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(n);
+        const fmtDec = (n) => new Intl.NumberFormat('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
+        const COLORS = ['#3b82f6', '#ef4444', '#f59e0b', '#10b981', '#6366f1', '#8b5cf6', '#ec4899', '#64748b'];
+
+        // --- Initial Data ---
+        const INITIAL = {
+            regCapital: 12000000,
+            loan: { amount: 0, rate: 5, term: 5 },
+            capex: { factory: 7000000, machine: 1300000, license: 200000, stock: 1000000 },
+            depreciation: { factoryYears: 20, machineYears: 10 }, 
+            targetBags: 20000, price: 389,
+            yield: 60, paddyPrice: 12000,
+            byProducts: [
+                { name: "แกลบ", percent: 23, price: 1500 },
+                { name: "รำละเอียด", percent: 10, price: 9000 },
+                { name: "รำหยาบ", percent: 2, price: 9000 },
+                { name: "ข้าวหัก", percent: 2, price: 14000 },
+                { name: "ของเสีย", percent: 1, price: 0 },
+            ],
+            unit: { bag: 6.5, sticker: 2.0 },
+            hr: [
+                { role: "CEO/MD", count: 1, salary: 50000 },
+                { role: "Plant Manager", count: 1, salary: 35000 },
+                { role: "Production Staff", count: 4, salary: 15000 },
+                { role: "Admin/Account", count: 1, salary: 20000 },
+                { role: "Sales/Marketing", count: 2, salary: 17775 }
+            ],
+            varParams: { elecRate: 600, mktPercent: 14, platformPercent: 12 },
+            fixedParams: { erp: 9000, campaign: 41000, other: 10000 },
+            logistics: { active: true, percent: 50, profit: 5 },
+            dividend: { payout: 50, founders: 3 },
+            growth: 10, inflation: 3, monthlyGrowth: 0, discountRate: 10,
+            scenario: 'base', taxPaymentMode: 'annual'
+        };
+
+        const App = () => {
+            const [d, setD] = useState(() => {
+                try {
+                    const savedData = localStorage.getItem('morbSukFinancialData_v35');
+                    return savedData ? JSON.parse(savedData) : INITIAL;
+                } catch (e) { return INITIAL; }
+            });
+            const [c, setC] = useState(null); 
+
+            useEffect(() => { localStorage.setItem('morbSukFinancialData_v35', JSON.stringify(d)); }, [d]);
+
+            const resetToDefault = () => {
+                if (confirm("Reset all data to default?")) { setD(INITIAL); localStorage.removeItem('morbSukFinancialData_v35'); }
+            };
+
+            const handlePrint = () => window.print();
+            
+            const handleExport = () => {
+                if(!c) return;
+                let csvContent = "data:text/csv;charset=utf-8,";
+                csvContent += "Year,Revenue,Expenses,EBITDA,Depreciation,Tax,Net Profit,Dividend,Cash Balance\n";
+                c.yrProj.data.forEach(row => {
+                    csvContent += `${row.y},${row.rev},${row.exp},${row.ebitda},${row.dep},${row.tax},${row.net},${row.div},${row.cash}\n`;
+                });
+                csvContent += "\nMonthly Year 1\nMonth,Revenue,Expense(Cash),EBITDA,Tax Paid,Cash Balance\n";
+                c.cf.forEach(row => {
+                    csvContent += `${row.m},${row.rev},${row.expCash},${row.netOpCash},${row.tax},${row.cashFinal}\n`;
+                });
+
+                const encodedUri = encodeURI(csvContent);
+                const link = document.createElement("a");
+                link.setAttribute("href", encodedUri);
+                link.setAttribute("download", "financial_projection.csv");
+                document.body.appendChild(link);
+                link.click();
+            };
+
+            const applyScenario = (type) => {
+                let newData = { ...d, scenario: type };
+                if (type === 'worst') { newData.targetBags = 14000; newData.paddyPrice = 13500; newData.growth = 0; newData.varParams.mktPercent = 18; } 
+                else if (type === 'base') { newData.targetBags = 20000; newData.paddyPrice = 12000; newData.growth = 10; newData.varParams.mktPercent = 14; } 
+                else if (type === 'best') { newData.targetBags = 25000; newData.paddyPrice = 11500; newData.growth = 15; newData.varParams.mktPercent = 12; }
+                setD(newData);
+            };
+
+            const up = (k, sk, v) => setD(p => ({...p, [k]: sk ? {...p[k], [sk]: +v} : +v}));
+            const upArr = (k, i, f, v) => {
+                const n = [...d[k]]; n[i][f] = f==='name'||f==='role'?v:+v; setD(p=>({...p, [k]: n}));
+            };
+
+            const calculateFinancials = (data) => {
+                const totalCapex = Object.values(data.capex).reduce((a,b)=>a+b,0);
+                const totalSources = data.regCapital + (data.loan.amount || 0);
+                const workingCap = totalSources - totalCapex;
+                const annualDepreciation = (data.capex.factory / data.depreciation.factoryYears) + (data.capex.machine / data.depreciation.machineYears);
+
+                const loanPrincipalYearly = data.loan.amount > 0 ? data.loan.amount / data.loan.term : 0;
+                const loanInterestYearly = data.loan.amount > 0 ? data.loan.amount * (data.loan.rate/100) : 0;
+                const loanPrincipalMonthly = loanPrincipalYearly / 12;
+                const loanInterestMonthly = loanInterestYearly / 12;
+
+                const dayTarget = data.targetBags / 30;
+                const hourTarget = data.targetBags / 24; 
+                const riceRev = data.targetBags * data.price;
+                
+                const paddyTons = (data.targetBags * 5) / (data.yield/100) / 1000;
+                const paddyBudget = paddyTons * data.paddyPrice;
+                let totalByProductIncome = 0;
+                const byProductsCalc = data.byProducts.map(item => {
+                    const weight = paddyTons * (item.percent / 100);
+                    const revenue = weight * item.price;
+                    totalByProductIncome += revenue;
+                    return { ...item, weight, revenue };
+                });
+
+                const logIncome = (data.targetBags * (data.logistics.percent/100)) * data.logistics.profit;
+
+                // VAT Logic: Voluntary VAT Registration (All Revenue Vatable)
+                const baseRev = riceRev + totalByProductIncome + logIncome; 
+                // Extract Output VAT from Total Gross Revenue
+                const totalVatOut = baseRev - (baseRev / 1.07);
+
+                // Expenses
+                const riceTotal = paddyBudget; // Exempt
+                const packTotal = (data.unit.bag + data.unit.sticker) * data.targetBags; // Vatable
+                const elecTotal = data.varParams.elecRate * paddyTons; // Vatable
+                const platformTotal = riceRev * (data.varParams.platformPercent/100); // Vatable
+                const mktTotal = riceRev * (data.varParams.mktPercent/100); // Vatable
+                
+                const salaryTotal = data.hr.reduce((s,x)=>s+(x.count*x.salary),0); // Exempt
+                const fixedCashTotal = salaryTotal + data.fixedParams.erp + data.fixedParams.campaign + data.fixedParams.other; 
+
+                // Input VAT Calculation
+                const vatableExpenses = packTotal + elecTotal + platformTotal + mktTotal + data.fixedParams.erp + data.fixedParams.campaign + data.fixedParams.other;
+                const totalVatIn = vatableExpenses - (vatableExpenses / 1.07);
+                const vatSettlement = totalVatOut - totalVatIn; 
+
+                const totalVar = riceTotal + packTotal + elecTotal + platformTotal + mktTotal; 
+                const section7Total = elecTotal + platformTotal + mktTotal + data.fixedParams.erp + data.fixedParams.campaign + data.fixedParams.other;
+
+                const riceCostUnit = (5 / (data.yield/100)) * (data.paddyPrice/1000);
+                const matCostUnit = riceCostUnit + data.unit.bag + data.unit.sticker;
+
+                // Cashflow Loop
+                const cf = [];
+                let runningCash = workingCap; 
+                let annualOperatingCashProfit = 0; 
+                let annualFinanceCost = 0; 
+
+                for(let i=1; i<=12; i++) {
+                    const growthFactor = Math.pow(1 + data.monthlyGrowth/100, i - 1);
+                    
+                    const mRev = baseRev * growthFactor; // Gross In
+                    
+                    const mRice = riceTotal * growthFactor;
+                    const mVatableVar = (packTotal + elecTotal + platformTotal + mktTotal) * growthFactor;
+                    const mSalary = salaryTotal;
+                    const mVatableFixed = (data.fixedParams.erp + data.fixedParams.campaign + data.fixedParams.other);
+                    const mExpCash = mRice + mVatableVar + mSalary + mVatableFixed; 
+                    
+                    // VAT Flow
+                    const mOutVat = totalVatOut * growthFactor;
+                    const mInVatFixed = (data.fixedParams.erp+data.fixedParams.campaign+data.fixedParams.other) - (data.fixedParams.erp+data.fixedParams.campaign+data.fixedParams.other)/1.07;
+                    const mInVatVar = totalVatIn - mInVatFixed;
+                    const mInVatTotal = (mInVatVar * growthFactor) + mInVatFixed;
+                    
+                    const mVatSettlement = mOutVat - mInVatTotal;
+                    const mNetOpCash = (mRev - mOutVat) - ((mExpCash - mInVatTotal)); 
+
+                    annualOperatingCashProfit += mNetOpCash;
+                    annualFinanceCost += loanInterestMonthly;
+
+                    const startOfMonthCash = runningCash;
+                    const netCashMovement = mNetOpCash - loanInterestMonthly - loanPrincipalMonthly - mVatSettlement;
+                    runningCash += netCashMovement;
+
+                    cf.push({ 
+                        m: i, 
+                        rev: mRev, 
+                        expCash: mExpCash, 
+                        netOpCash: mNetOpCash, 
+                        interest: loanInterestMonthly, 
+                        principal: loanPrincipalMonthly, 
+                        cashStart: startOfMonthCash, 
+                        cashPreTax: runningCash, 
+                        vatPaid: mVatSettlement 
+                    });
+                }
+
+                // Tax Calc
+                const taxableIncome = annualOperatingCashProfit - annualDepreciation - annualFinanceCost;
+                let taxDetails = [];
+                let totalTaxEst = 0;
+                if (taxableIncome > 300000) {
+                    const taxable = Math.min(taxableIncome - 300000, 2700000);
+                    const tax = taxable * 0.15;
+                    totalTaxEst += tax;
+                    taxDetails.push({ tier: "300k-3M", rate: 15, amount: tax });
+                }
+                if (taxableIncome > 3000000) {
+                    const taxable = taxableIncome - 3000000;
+                    const tax = taxable * 0.20;
+                    totalTaxEst += tax;
+                    taxDetails.push({ tier: "> 3M", rate: 20, amount: tax });
+                }
+                
+                const monthlyTaxAvg = totalTaxEst / 12;
+                const cfFinal = cf.map((item, index) => {
+                    let mTax = 0;
+                    if (data.taxPaymentMode === 'annual') mTax = index === 11 ? totalTaxEst : 0;
+                    else if (data.taxPaymentMode === 'monthly') mTax = monthlyTaxAvg;
+                    
+                    const mNetCashFinal = item.netOpCash - item.interest - item.principal - item.vatPaid - mTax; 
+                    
+                    let finalCumulativeCash = item.cashPreTax;
+                    if (data.taxPaymentMode === 'annual') { if (index === 11) finalCumulativeCash -= totalTaxEst; } 
+                    else if (data.taxPaymentMode === 'monthly') { finalCumulativeCash -= (monthlyTaxAvg * (index + 1)); }
+                    
+                    return { ...item, tax: mTax, netCashFinal: mNetCashFinal, cashFinal: finalCumulativeCash };
+                });
+
+                const cfTotal = cfFinal.reduce((acc, cur) => ({
+                    rev: acc.rev + cur.rev, expCash: acc.expCash + cur.expCash, netOpCash: acc.netOpCash + cur.netOpCash, 
+                    tax: acc.tax + cur.tax, interest: acc.interest + cur.interest, principal: acc.principal + cur.principal, 
+                    vatPaid: acc.vatPaid + cur.vatPaid,
+                    netCashFinal: acc.netCashFinal + cur.netCashFinal
+                }), { rev: 0, expCash: 0, netOpCash: 0, tax: 0, interest: 0, principal: 0, vatPaid: 0, netCashFinal: 0 });
+                cfTotal.cashFinal = cfFinal[11].cashFinal;
+
+                const annualNetProfitAfterAll = taxableIncome - totalTaxEst; 
+                const dividendTotal = annualNetProfitAfterAll > 0 ? annualNetProfitAfterAll * (data.dividend.payout / 100) : 0;
+                const dividendPerPersonYear = data.dividend.founders > 0 ? dividendTotal / data.dividend.founders : 0;
+                const dividendPerPersonMonth = dividendPerPersonYear / 12;
+                const roi = totalSources > 0 ? (annualNetProfitAfterAll / totalSources) * 100 : 0;
+                
+                // BEP Calc
+                const vcTotal = totalVar; 
+                const revenueTotal = baseRev;
+                const fcTotal = fixedCashTotal;
+                const revPerBag = revenueTotal / data.targetBags;
+                const vcPerBag = vcTotal / data.targetBags;
+                const cmPerBag = revPerBag - vcPerBag; 
+                const bepUnits = cmPerBag > 0 ? fcTotal / cmPerBag : 0;
+                const bepSales = bepUnits * revPerBag;
+
+                // BEP Data
+                const bepData = [];
+                const steps = [0, 0.5, 1.0, 1.5]; 
+                steps.forEach(s => {
+                    const units = data.targetBags * s;
+                    bepData.push({ units: units, revenue: units * revPerBag, totalCost: fcTotal + (units * vcPerBag), fixedCost: fcTotal });
+                });
+                if(bepUnits < data.targetBags * 1.5) bepData.push({ units: bepUnits, revenue: bepSales, totalCost: bepSales, fixedCost: fcTotal, isBep: true });
+                bepData.sort((a,b) => a.units - b.units);
+
+                const netMargin = (annualNetProfitAfterAll / cfTotal.rev) * 100;
+                const grossMargin = ((riceRev - (riceTotal + packTotal + elecTotal + salaryTotal)) / riceRev) * 100;
+                const debtService = loanPrincipalYearly + annualFinanceCost;
+                const dscr = debtService > 0 ? annualOperatingCashProfit / debtService : (annualOperatingCashProfit > 0 ? 999 : 0);
+
+                let paybackMonth = "ยังไม่คืนทุน";
+                const annualCashFlow = annualOperatingCashProfit - totalTaxEst - annualFinanceCost;
+                if (annualCashFlow > 0) {
+                     const monthsToPayback = totalSources / (annualCashFlow/12);
+                     if (monthsToPayback <= 12) paybackMonth = `${Math.ceil(monthsToPayback)} เดือน`;
+                     else paybackMonth = `${(monthsToPayback/12).toFixed(1)} ปี`;
+                }
+
+                const vatBreakdown = {
+                    vatableExp: vatableExpenses,
+                    inputVat: totalVatIn,
+                    outputVat: totalVatOut,
+                    netVat: vatSettlement
+                };
+
+                const revBreakdown = {
+                    sales: riceRev, byProduct: totalByProductIncome, logistics: logIncome,
+                    totalIn: baseRev, vat: totalVatOut,
+                    opCost: (totalVar - totalVatOut) + fixedCashTotal,
+                    opVar: totalVar - totalVatOut,
+                    opFixed: fixedCashTotal,
+                    netCash: baseRev - totalVatOut - (totalVar - totalVatOut) - fixedCashTotal,
+                    riceCost: riceTotal, packCost: packTotal, feesCost: platformTotal + mktTotal,
+                    elecCost: elecTotal, salaryCost: salaryTotal, otherFixed: data.fixedParams.erp + data.fixedParams.campaign + data.fixedParams.other
+                };
+
+                return {
+                    totalCapex, totalSources, workingCap, dayTarget, hourTarget, paddyTons,
+                    annualDepreciation, depFactory: data.capex.factory / data.depreciation.factoryYears, depMachine: data.capex.machine / data.depreciation.machineYears,
+                    totalByProductIncome, byProductsCalc, riceCostUnit, matCostUnit, grossRev: riceRev,
+                    riceTotal, packTotal, elecTotal, platformTotal, mktTotal, totalVar,
+                    salaryTotal, fixedCashTotal, logIncome, 
+                    ebitda: annualOperatingCashProfit, 
+                    annualProfitEst: taxableIncome, annualTax: totalTaxEst, taxDetails, 
+                    netProfit: annualNetProfitAfterAll, roi, paybackMonth, netMargin, grossMargin, dscr,
+                    bepUnits, bepSales, fcTotal, vcPerBag, revPerBag, bepData,
+                    cf: cfFinal, cfTotal, dividendTotal, revBreakdown, vatBreakdown,
+                    section7Total, elecTotal, platformTotal, mktTotal,
+                    dividendPerPersonYear, dividendPerPersonMonth,
+                    annualFinanceCost, loanPrincipalYearly
+                };
+            };
+
+            const sensitivityData = useMemo(() => {
+                const results = [];
+                const priceSteps = [0.9, 1.0, 1.1]; 
+                const volumeSteps = [0.9, 1.0, 1.1]; 
+                priceSteps.forEach(pStep => {
+                    const row = [];
+                    volumeSteps.forEach(vStep => {
+                        const tData = JSON.parse(JSON.stringify(d));
+                        tData.targetBags = Math.round(d.targetBags * vStep);
+                        tData.paddyPrice = Math.round(d.paddyPrice * pStep);
+                        const financials = calculateFinancials(tData);
+                        row.push({ vLabel: `${(vStep*100-100).toFixed(0)}%`, pLabel: `${(pStep*100-100).toFixed(0)}%`, profit: financials.netProfit });
+                    });
+                    results.push(row);
+                });
+                return results;
+            }, [d]);
+
+            useEffect(() => { setC(calculateFinancials(d)); }, [d]);
+
+            const projection = useMemo(() => {
+                if(!c) return { data: [], npv: 0 }; 
+                const yrProj = [];
+                let yCash = c.cfTotal.cashFinal;
+                const y1TaxPaid = (d.taxPaymentMode === 'annual' || d.taxPaymentMode === 'monthly') ? c.annualTax : 0;
+                const y1ExpCash = c.cfTotal.expCash + y1TaxPaid + c.cfTotal.interest + c.cfTotal.principal;
+                yCash -= c.dividendTotal;
+                
+                yrProj.push({ y: 1, rev: c.cfTotal.rev, exp: y1ExpCash, ebitda: c.ebitda, dep: c.annualDepreciation, tax: c.annualTax, net: c.netProfit, div: c.dividendTotal, cash: yCash });
+
+                let prevRev = c.cfTotal.rev;
+                let prevTotalExpExclTax = c.cfTotal.expCash;
+                let prevTaxLiability = d.taxPaymentMode === 'deferred' ? c.annualTax : 0;
+
+                let npv = -c.totalSources; 
+                const discountRate = (d.discountRate || 10) / 100;
+
+                for(let y=2;y<=5;y++) {
+                    const growthRate = d.growth / 100;
+                    const inflationRate = d.inflation / 100;
+                    const yRev = prevRev * (1 + growthRate);
+                    const yExpExclTax = prevTotalExpExclTax * (1 + growthRate) * (1 + inflationRate);
+                    const yEbitda = yRev - yExpExclTax;
+                    const yInterest = (c.annualFinanceCost || 0) * 0.8; 
+                    const yPrincipal = (c.loanPrincipalYearly || 0);
+                    const yTaxable = yEbitda - c.annualDepreciation - yInterest;
+                    let yTax = 0;
+                    if (yTaxable > 300000) yTax += Math.min(yTaxable - 300000, 2700000) * 0.15;
+                    if (yTaxable > 3000000) yTax += (yTaxable - 3000000) * 0.20;
+
+                    let taxPaidThisYear = d.taxPaymentMode === 'deferred' ? prevTaxLiability : yTax;
+                    if (d.taxPaymentMode === 'deferred') prevTaxLiability = yTax;
+
+                    const yNetAcc = yTaxable - yTax; 
+                    const yDiv = yNetAcc > 0 ? yNetAcc * (d.dividend.payout / 100) : 0;
+                    yCash += (yRev - yExpExclTax - taxPaidThisYear - yDiv - yInterest - yPrincipal);
+                    
+                    yrProj.push({ y, rev: yRev, exp: yExpExclTax + taxPaidThisYear + yInterest + yPrincipal, ebitda: yEbitda, dep: c.annualDepreciation, tax: yTax, net: yNetAcc, div: yDiv, cash: yCash });
+                    prevRev = yRev;
+                    prevTotalExpExclTax = yExpExclTax;
+                }
+                
+                yrProj.forEach((yr) => {
+                     const cashFlow = yr.ebitda - yr.tax;
+                     npv += cashFlow / Math.pow(1 + discountRate, yr.y);
+                });
+
+                return { data: yrProj, npv };
+            }, [c, d.growth, d.inflation, d.dividend.payout, d.taxPaymentMode, d.discountRate]);
+
+            if(!c) return <div className="p-10 text-center text-slate-500">Loading System...</div>;
+
+            const costData = [
+                { name: 'ข้าวสาร', value: c.revBreakdown.riceCost }, { name: 'บรรจุ', value: c.revBreakdown.packCost },
+                { name: 'การตลาด', value: c.mktTotal }, { name: 'Platform', value: c.platformTotal },
+                { name: 'ค่าไฟ', value: c.elecTotal }, { name: 'พนักงาน', value: c.salaryTotal },
+                { name: 'อื่นๆ', value: c.revBreakdown.otherFixed + c.annualFinanceCost },
+            ];
+            const revenueData = [ { name: 'ข้าว', value: c.grossRev }, { name: 'ของเสีย', value: c.totalByProductIncome }, { name: 'ขนส่ง', value: c.logIncome } ];
+            
+            const getHeatmapColor = (profit) => {
+                if (profit < 0) return 'bg-red-100 text-red-700';
+                if (profit < c.netProfit * 0.5) return 'bg-orange-100 text-orange-700';
+                if (profit < c.netProfit * 0.8) return 'bg-yellow-100 text-yellow-700';
+                return 'bg-green-100 text-green-700';
+            };
+
+            return (
+                <div className="app-container font-sans text-slate-800">
+                    <header className="header-bar sticky top-0 z-50 flex flex-col md:flex-row justify-between items-center gap-4">
+                        <div>
+                            <h1 className="text-xl font-bold tracking-tight">Thai Fortunate Innovation</h1>
+                            <p className="text-xs text-slate-400">Financial Strategy Simulator (Ultimate VAT Fixed)</p>
+                        </div>
+                        <div className="flex items-center gap-2 header-controls">
+                            <span className="text-xs text-slate-400 font-bold mr-1">SCENARIO:</span>
+                            <button onClick={()=>applyScenario('worst')} className={`scenario-btn ${d.scenario==='worst'?'bg-red-100 text-red-700 active ring-2 ring-red-500':'bg-slate-700 text-slate-300'}`}>Worst</button>
+                            <button onClick={()=>applyScenario('base')} className={`scenario-btn ${d.scenario==='base'?'bg-blue-100 text-blue-700 active ring-2 ring-blue-500':'bg-slate-700 text-slate-300'}`}>Base</button>
+                            <button onClick={()=>applyScenario('best')} className={`scenario-btn ${d.scenario==='best'?'bg-green-100 text-green-700 active ring-2 ring-green-500':'bg-slate-700 text-slate-300'}`}>Best</button>
+                            <button onClick={resetToDefault} className="scenario-btn bg-slate-600 text-slate-200 ml-2 hover:bg-slate-500">Reset</button>
+                            <button onClick={handleExport} className="scenario-btn bg-emerald-600 text-white ml-2 hover:bg-emerald-500 flex items-center gap-1"><span>📥</span> CSV</button>
+                            <button onClick={handlePrint} className="scenario-btn bg-white text-slate-800 ml-2 hover:bg-slate-100 flex items-center gap-1 font-bold border border-slate-300"><span>🖨️</span> Print</button>
+                        </div>
+                    </header>
+
+                    <main className="p-4 max-w-[1600px] mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6">
+                        
+                        {/* --- LEFT: Production & Cost --- */}
+                        <div className="lg:col-span-3 space-y-4">
+                            <h2 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">1. Production & Cost</h2>
+                            <div className="card">
+                                <div className="card-header"><div className="card-title">เงินลงทุน & แหล่งเงิน (CAPEX)</div><div className="text-red-500 font-bold text-sm">{fmt(c.totalCapex)}</div></div>
+                                <div className="card-body">
+                                    <div className="input-group"><label className="input-label">ทุนจดทะเบียน (Equity)</label><input type="number" className="input-field border-blue-200 bg-blue-50 text-blue-800" value={d.regCapital} onChange={e=>up('regCapital',null,e.target.value)} /></div>
+                                    <div className="p-2 border border-dashed rounded mb-3 bg-yellow-50/50"><div className="text-xs font-bold text-slate-500 mb-1">🏦 เงินกู้ธนาคาร (Bank Loan)</div><div className="flex gap-2 mb-1"><div className="flex-1"><label className="text-[10px]">วงเงินกู้</label><input type="number" className="input-field" value={d.loan.amount} onChange={e=>up('loan','amount',e.target.value)}/></div><div className="w-16"><label className="text-[10px]">ดบ.%</label><input type="number" className="input-field text-center" value={d.loan.rate} onChange={e=>up('loan','rate',e.target.value)}/></div></div><div className="flex gap-2"><div className="flex-1 text-[10px] text-slate-400 pt-1">ระยะเวลา {d.loan.term} ปี</div><div className="text-[10px] text-red-400 font-bold pt-1">ดบ. {fmt(c.annualFinanceCost)}/ปี</div></div></div>
+                                    <div className="grid grid-cols-2 gap-2 mb-2"><div><label className="input-label">โรงงาน</label><input type="number" className="input-field" value={d.capex.factory} onChange={e=>up('capex','factory',e.target.value)}/></div><div><label className="input-label">เครื่องจักร</label><input type="number" className="input-field" value={d.capex.machine} onChange={e=>up('capex','machine',e.target.value)}/></div></div>
+                                    <div className="input-group"><label className="input-label">ใบอนุญาต</label><input type="number" className="input-field" value={d.capex.license} onChange={e=>up('capex','license',e.target.value)} /></div>
+                                    <div className="input-group bg-orange-50 p-2 rounded border border-orange-100"><label className="input-label text-orange-800 font-bold">เงินสต็อคข้าวล็อตแรก</label><input type="number" className="input-field bg-white text-orange-700 font-bold" value={d.capex.stock} onChange={e=>up('capex','stock',e.target.value)} /></div>
+                                    <div className="flex justify-between text-xs text-green-600 mt-2 bg-green-50 p-2 rounded"><span>Working Cap คงเหลือ:</span><span className="font-bold">{fmt(c.workingCap)}</span></div>
+                                </div>
+                            </div>
+                            <div className="card"><div className="card-header"><div className="card-title">การผลิต (Yield)</div></div><div className="card-body"><div className="input-group mb-4"><label className="input-label flex justify-between"><span>Yield ข้าวสาร</span><span className="font-bold text-blue-600">{d.yield}%</span></label><input type="range" className="w-full" min="40" max="70" value={d.yield} onChange={e=>up('yield',null,e.target.value)}/></div><div className="input-group"><label className="input-label">ราคาข้าวเปลือก (บาท/ตัน)</label><input type="number" className="input-field" value={d.paddyPrice} onChange={e=>up('paddyPrice',null,e.target.value)}/></div><div className="text-xs text-slate-500 mt-2 text-right">ต้องใช้ข้าวเปลือก: <b>{fmtDec(c.paddyTons)}</b> ตัน</div></div></div>
+                            <div className="card"><div className="card-header"><div className="card-title">ต้นทุนต่อถุง</div><div className="text-red-600 font-bold">{fmtDec(c.matCostUnit)}</div></div><div className="card-body"><div className="grid grid-cols-3 gap-2 text-center text-xs mb-2"><div className="bg-slate-100 p-1 rounded"><div>เนื้อข้าว</div><b>{fmtDec(c.riceCostUnit)}</b></div><div className="bg-slate-100 p-1 rounded"><div>ถุง</div><input className="w-full text-center bg-transparent" value={d.unit.bag} onChange={e=>up('unit','bag',e.target.value)}/></div><div className="bg-slate-100 p-1 rounded"><div>สติ๊กเกอร์</div><input className="w-full text-center bg-transparent" value={d.unit.sticker} onChange={e=>up('unit','sticker',e.target.value)}/></div></div></div></div>
+                            <div className="card"><div className="card-header"><div className="card-title">โครงสร้างพนักงาน</div><div className="text-blue-600 font-bold text-sm">{fmt(c.salaryTotal)}</div></div><div className="card-body"><table className="w-full hr-table"><thead><tr><th>ตำแหน่ง</th><th className="w-12 text-center">คน</th><th className="w-20 text-right">เงินเดือน</th></tr></thead><tbody>{d.hr.map((h,i)=>(<tr key={i}><td>{h.role}</td><td><input type="number" className="hr-input text-center" value={h.count} onChange={e=>upArr('hr',i,'count',e.target.value)}/></td><td><input type="number" className="hr-input" value={h.salary} onChange={e=>upArr('hr',i,'salary',e.target.value)}/></td></tr>))}</tbody></table></div></div>
+                            <div className="card"><div className="card-header"><div className="card-title">ค่าใช้จ่ายอื่นๆ (Expenses)</div><div className="text-red-500 font-bold text-sm">{fmt(c.section7Total)}</div></div><div className="card-body space-y-3"><div><div className="text-xs font-bold text-slate-500 mb-1">Variable Cost Parameters</div><div className="input-row"><span className="text-sm">ค่าไฟ ({d.varParams.elecRate} บ./ตัน)</span><div className="flex items-center gap-2"><input type="number" className="input-field w-16" value={d.varParams.elecRate} onChange={e=>up('varParams','elecRate',e.target.value)}/><span className="text-xs font-bold text-slate-600 min-w-[60px] text-right">{fmt(c.elecTotal)}</span></div></div><div className="input-row"><span className="text-sm">Platform (%)</span><div className="flex items-center gap-2"><input type="number" className="input-field w-16" value={d.varParams.platformPercent} onChange={e=>up('varParams','platformPercent',e.target.value)}/><span className="text-xs font-bold text-slate-600 min-w-[60px] text-right">{fmt(c.platformTotal)}</span></div></div><div className="input-row"><span className="text-sm">Marketing (%)</span><div className="flex items-center gap-2"><input type="number" className="input-field w-16" value={d.varParams.mktPercent} onChange={e=>up('varParams','mktPercent',e.target.value)}/><span className="text-xs font-bold text-slate-600 min-w-[60px] text-right">{fmt(c.mktTotal)}</span></div></div></div><div><div className="text-xs font-bold text-slate-500 mb-1">Fixed Cost (Other)</div><div className="input-row"><span className="text-sm">ERP Software</span><input type="number" className="input-field w-24" value={d.fixedParams.erp} onChange={e=>up('fixedParams','erp',e.target.value)}/></div><div className="input-row"><span className="text-sm">แคมเปญล้นทองฯ</span><input type="number" className="input-field w-24" value={d.fixedParams.campaign} onChange={e=>up('fixedParams','campaign',e.target.value)}/></div><div className="input-row"><span className="text-sm">อื่นๆ (Misc)</span><input type="number" className="input-field w-24" value={d.fixedParams.other} onChange={e=>up('fixedParams','other',e.target.value)}/></div></div></div></div>
+                        </div>
+
+                        {/* --- CENTER: Strategy & Dashboard --- */}
+                        <div className="lg:col-span-5 space-y-4">
+                            <h2 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">2. Strategy & Performance</h2>
+                            
+                            <div className="bg-slate-800 rounded-xl p-4 text-white shadow-lg mb-4">
+                                <div className="flex justify-between items-start mb-4">
+                                    <h3 className="font-bold text-lg flex items-center gap-2"><span className="text-yellow-400">★</span> Executive Summary</h3>
+                                    <div className="text-right">
+                                        <div className="text-xs text-slate-400">Net Profit (Year 1)</div>
+                                        <div className={`text-2xl font-bold ${c.netProfit>0?'text-green-400':'text-red-400'}`}>{fmt(c.netProfit)} ฿</div>
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-4 gap-2 text-center">
+                                    <div className="bg-slate-700/50 rounded p-2 border border-slate-600">
+                                        <div className="text-[10px] text-slate-400">Net Margin</div>
+                                        <div className="font-bold text-md text-green-300">{c.netMargin.toFixed(1)}%</div>
+                                    </div>
+                                    <div className="bg-slate-700/50 rounded p-2 border border-slate-600">
+                                        <div className="text-[10px] text-slate-400">Gross Margin</div>
+                                        <div className="font-bold text-md text-blue-300">{c.grossMargin.toFixed(1)}%</div>
+                                    </div>
+                                    <div className="bg-slate-700/50 rounded p-2 border border-slate-600">
+                                        <div className="text-[10px] text-slate-400">DSCR</div>
+                                        <div className={`font-bold text-md ${c.dscr>=1.25?'text-green-300':c.dscr>=1?'text-yellow-300':'text-red-400'}`}>{c.dscr.toFixed(2)}</div>
+                                    </div>
+                                    <div className="bg-slate-700/50 rounded p-2 border border-slate-600">
+                                        <div className="text-[10px] text-slate-400">ROI</div>
+                                        <div className="font-bold text-md text-yellow-300">{fmtDec(c.roi)}%</div>
+                                    </div>
+                                </div>
+                                <div className="mt-2 text-center text-xs text-slate-400">
+                                    คืนทุน: <span className="text-white font-bold">{c.paybackMonth}</span> | 
+                                    BEP: <span className="text-white font-bold">{fmt(c.bepUnits)}</span> ถุง/เดือน
+                                </div>
+                            </div>
+
+                            <div className="card border-blue-200">
+                                <div className="card-header bg-blue-50/50"><div className="card-title text-blue-800">เป้าหมายการขาย (Targets)</div></div>
+                                <div className="card-body">
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="input-group"><label className="input-label">เป้าขาย (ถุง/เดือน)</label><input type="number" className="input-field text-lg font-bold text-blue-700 border-blue-300" value={d.targetBags} onChange={e=>up('targetBags',null,e.target.value)}/></div>
+                                        <div className="input-group"><label className="input-label">ราคาขาย (บาท/ถุง)</label><input type="number" className="input-field text-lg" value={d.price} onChange={e=>up('price',null,e.target.value)}/></div>
+                                    </div>
+                                    <div className="flex justify-between bg-slate-50 p-3 rounded mt-2 border border-slate-100">
+                                        <div className="text-center"><div className="text-xs text-slate-500">ยอดขายรวม</div><div className="font-bold text-slate-700">{fmt(c.grossRev)}</div></div>
+                                        <div className="text-center"><div className="text-xs text-slate-500">เป้าต่อวัน</div><div className="font-bold text-slate-700">{fmt(c.dayTarget)}</div></div>
+                                        <div className="text-center"><div className="text-xs text-slate-500">เป้าต่อ ชม.</div><div className="font-bold text-slate-700">{fmtDec(c.hourTarget)}</div></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="card border-orange-200">
+                                <div className="card-header bg-orange-50"><div className="card-title text-orange-800">รายได้จากการขายของเสีย (By-products)</div></div>
+                                <div className="card-body p-2">
+                                    <table className="w-full text-xs">
+                                        <thead><tr className="border-b border-orange-100 text-orange-600"><th className="p-1 text-left">รายการ</th><th className="p-1 text-center">%</th><th className="p-1 text-right">ตัน</th><th className="p-1 text-right">ราคา/ตัน</th><th className="p-1 text-right">รวม (บ.)</th></tr></thead>
+                                        <tbody>
+                                            {c.byProductsCalc.map((item, i) => (
+                                                <tr key={i} className="border-b border-dashed border-slate-100 hover:bg-orange-50/30">
+                                                    <td className="p-1">{item.name}</td><td className="p-1 text-center text-slate-400">{item.percent}</td><td className="p-1 text-right font-medium">{fmtDec(item.weight)}</td>
+                                                    <td className="p-1"><input type="number" className="input-field text-xs p-1 h-6 w-full text-right" value={item.price} onChange={e=>upArr('byProducts',i,'price',e.target.value)}/></td>
+                                                    <td className="p-1 text-right font-bold text-orange-700">{fmt(item.revenue)}</td>
+                                                </tr>
+                                            ))}
+                                            <tr className="bg-orange-50 font-bold border-t border-orange-200"><td colSpan="4" className="p-2 text-right text-orange-800">รวมรายได้ของเสียต่อเดือน</td><td className="p-2 text-right text-orange-800">{fmt(c.totalByProductIncome)}</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            <div className="card">
+                                <div className="card-header"><div className="card-title text-sm">รายได้ Drop-off (J&T Home)</div></div>
+                                <div className="card-body p-3">
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="input-group"><label className="input-label">สัดส่วนส่งเอง (%)</label><input type="number" className="input-field" value={d.logistics.percent} onChange={e=>up('logistics','percent',e.target.value)}/></div>
+                                        <div className="input-group"><label className="input-label">ค่า Drop-off/ชิ้น</label><input type="number" className="input-field" value={d.logistics.profit} onChange={e=>up('logistics','profit',e.target.value)}/></div>
+                                    </div>
+                                    <div className="text-right text-sm text-green-600 font-bold mt-2 border-t pt-2">รายได้เพิ่ม: +{fmt(c.logIncome)} บ./เดือน</div>
+                                </div>
+                            </div>
+
+                            {/* NEW: VAT Refund Section */}
+                            <div className="card border-blue-100">
+                                <div className="card-header bg-blue-50"><div className="card-title text-blue-800">ประมาณการขอคืนภาษีซื้อ (VAT Refund Est.)</div></div>
+                                <div className="card-body p-3 text-xs">
+                                    <div className="flex justify-between mb-1 text-slate-500"><span>ฐานค่าใช้จ่าย (Vatable Expenses)</span><span>{fmt(c.vatBreakdown.vatableExp)}</span></div>
+                                    <div className="text-[10px] text-slate-400 pl-2 mb-2">- ค่าถุง, สติกเกอร์, ค่าไฟ, Platform, Ads, และค่าใช้จ่ายคงที่อื่นๆ</div>
+                                    <div className="flex justify-between border-t border-dashed pt-2">
+                                        <span>Output VAT (ขาย)</span>
+                                        <span className="text-red-500 font-bold">{fmt(c.vatBreakdown.outputVat)}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span>Input VAT (ซื้อ)</span>
+                                        <span className="text-green-500 font-bold">-{fmt(c.vatBreakdown.inputVat)}</span>
+                                    </div>
+                                    <div className={`flex justify-between mt-2 pt-2 border-t font-bold text-sm ${c.vatBreakdown.netVat > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                                        <span>{c.vatBreakdown.netVat > 0 ? 'ต้องชำระเพิ่ม (Pay)' : 'ขอคืนได้ (Refund)'}</span>
+                                        <span>{fmt(Math.abs(c.vatBreakdown.netVat))}</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="card">
+                                <div className="card-header"><div className="card-title text-indigo-700">Monthly Revenue & Cost Breakdown</div></div>
+                                <div className="card-body">
+                                    <div className="flow-row"><span className="text-indigo-600 font-bold">1. Cash Inflow</span><span>{fmt(c.revBreakdown.totalIn)}</span></div>
+                                    <div className="flow-row flow-sub"><span>- Sales (Gross)</span><span>{fmt(c.revBreakdown.sales)}</span></div>
+                                    <div className="flow-row flow-sub"><span>- By-products</span><span>{fmt(c.revBreakdown.byProduct)}</span></div>
+                                    <div className="flow-row flow-sub"><span>- Logistics</span><span>{fmt(c.revBreakdown.logistics)}</span></div>
+                                    <div className="flow-row mt-2"><span className="text-red-600 font-bold">2. VAT Obligation</span><span>-{fmt(c.revBreakdown.vat)}</span></div>
+                                    <div className="flow-row flow-sub text-xs"><span>* VAT จากยอดขายรวม (สมัครใจเข้าระบบ VAT)</span></div>
+                                    <div className="flow-row mt-2"><span className="text-orange-600 font-bold">3. Operational Outflow</span><span>-{fmt(c.revBreakdown.opCost)}</span></div>
+                                    <div className="flow-row flow-sub font-bold text-slate-600">Variable (excl. VAT)<span>{fmt(c.revBreakdown.opVar)}</span></div>
+                                    <div className="flow-row flow-sub pl-6 text-xs text-slate-500">- Rice: {fmt(c.revBreakdown.riceCost)} | Pack: {fmt(c.revBreakdown.packCost)}<br/>- Fees: {fmt(c.revBreakdown.feesCost)} | Elec: {fmt(c.revBreakdown.elecCost)}</div>
+                                    <div className="flow-row flow-sub font-bold text-slate-600 mt-1">Fixed Cost<span>{fmt(c.revBreakdown.opFixed)}</span></div>
+                                    <div className="flow-row flow-sub pl-6 text-xs text-slate-500">- Salary: {fmt(c.revBreakdown.salaryCost)} | Other: {fmt(c.revBreakdown.otherFixed)}</div>
+                                    <div className="flow-row total text-lg bg-green-50 p-2 rounded mt-2"><span className="text-green-700">Net Cash (EBITDA)</span><span className="text-green-700">{fmt(c.revBreakdown.netCash)}</span></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* --- RIGHT: Analysis --- */}
+                        <div className="lg:col-span-4 space-y-4">
+                            <h2 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">3. Financial Outlook</h2>
+                            
+                            <div className="card print-btn-hide">
+                                <div className="card-header"><div className="card-title">Cumulative Cashflow</div></div>
+                                <div className="card-body h-[200px]">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <AreaChart data={c.cf}><CartesianGrid strokeDasharray="3 3" vertical={false} /><XAxis dataKey="m" tick={{fontSize: 10}} /><YAxis tick={{fontSize: 10}} tickFormatter={(val)=>`${val/1000000}M`} /><Tooltip formatter={(value) => fmt(value)} labelFormatter={(l)=>`Month ${l}`} /><Area type="monotone" dataKey="cashFinal" stroke="#10b981" fill="#dcfce7" strokeWidth={2} /></AreaChart>
+                                    </ResponsiveContainer>
+                                </div>
+                            </div>
+
+                            {/* Break-even Chart - FIXED */}
+                            <div className="card">
+                                <div className="card-header"><div className="card-title text-sm">จุดคุ้มทุน (Break-even Analysis)</div></div>
+                                <div className="card-body h-[200px]">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <ComposedChart data={c.bepData}>
+                                            <CartesianGrid strokeDasharray="3 3" />
+                                            <XAxis dataKey="units" type="number" tickFormatter={(val)=>`${val/1000}k`} label={{ value: 'Units (Bags)', position: 'insideBottom', offset: -5, fontSize: 10 }} />
+                                            <YAxis tickFormatter={(val)=>`${val/1000}k`} tick={{fontSize: 10}} />
+                                            <Tooltip formatter={(value) => fmt(value)} labelFormatter={(l)=>`Units: ${fmt(l)}`} />
+                                            <Line type="monotone" dataKey="revenue" stroke="#10b981" name="Revenue" strokeWidth={2} dot={false} />
+                                            <Line type="monotone" dataKey="totalCost" stroke="#ef4444" name="Total Cost" strokeWidth={2} dot={false} />
+                                            <Line type="monotone" dataKey="fixedCost" stroke="#94a3b8" name="Fixed Cost" strokeDasharray="5 5" dot={false} />
+                                        </ComposedChart>
+                                    </ResponsiveContainer>
+                                </div>
+                            </div>
+                            
+                            {/* Revenue Structure */}
+                            <div className="card">
+                                <div className="card-header"><div className="card-title">Revenue Structure</div></div>
+                                <div className="card-body h-[300px]">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <PieChart><Pie data={revenueData} cx="50%" cy="45%" innerRadius={40} outerRadius={70} paddingAngle={5} dataKey="value" label={({percent}) => `${(percent * 100).toFixed(0)}%`}>{revenueData.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}</Pie><Tooltip formatter={(value) => fmt(value)} /><Legend iconSize={10} layout="horizontal" verticalAlign="bottom" align="center" wrapperStyle={{fontSize:'11px'}}/></PieChart>
+                                    </ResponsiveContainer>
+                                </div>
+                            </div>
+                            
+                            {/* Cost Structure - Resized */}
+                            <div className="card">
+                                <div className="card-header"><div className="card-title">Cost Structure</div></div>
+                                <div className="card-body h-[300px]">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <PieChart><Pie data={costData} cx="50%" cy="45%" innerRadius={40} outerRadius={70} paddingAngle={2} dataKey="value" label={({percent}) => `${(percent * 100).toFixed(0)}%`}>{costData.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}</Pie><Tooltip formatter={(value) => fmt(value)} /><Legend iconSize={10} layout="horizontal" verticalAlign="bottom" align="center" wrapperStyle={{fontSize:'11px'}}/></PieChart>
+                                    </ResponsiveContainer>
+                                </div>
+                            </div>
+
+                            {/* Sensitivity Analysis with Heatmap */}
+                            <div className="card mt-4">
+                                <div className="card-header"><div className="card-title text-sm">⚠️ Sensitivity (Net Profit)</div></div>
+                                <div className="card-body p-2">
+                                    <div className="text-[10px] text-center mb-1 text-slate-400">แกนตั้ง: ราคาวัตถุดิบ | แกนนอน: ยอดขาย</div>
+                                    <table className="w-full matrix-table">
+                                        <thead>
+                                            <tr>
+                                                <th className="bg-slate-100">Price \ Vol</th>
+                                                <th className="matrix-header">-10%</th>
+                                                <th className="matrix-header">Base</th>
+                                                <th className="matrix-header">+10%</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {sensitivityData.map((row, rI) => (
+                                                <tr key={rI}>
+                                                    <td className="matrix-header">{row[0].pLabel}</td>
+                                                    {row.map((cell, cI) => (
+                                                        <td key={cI} className={`font-bold ${getHeatmapColor(cell.profit)}`}>{fmt(cell.profit/1000)}k</td>
+                                                    ))}
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* --- BOTTOM --- */}
+                        <div className="lg:col-span-12 space-y-6">
+                             <div className="card">
+                                <div className="card-header"><div className="card-title text-slate-700">Detailed Monthly Cashflow (Year 1)</div><div className="flex items-center gap-2 text-xs"><span className="text-slate-500">Monthly Growth:</span><input type="number" className="border border-slate-300 rounded px-2 py-1 w-16 text-right" value={d.monthlyGrowth} onChange={e=>up('monthlyGrowth', null, e.target.value)} /><span className="text-slate-500">%</span></div></div>
+                                <div className="overflow-x-auto custom-scroll">
+                                    <table className="w-full text-xs text-right border-collapse min-w-[800px]">
+                                        <thead className="bg-slate-100 text-slate-600"><tr><th className="p-3 text-center">Month</th><th className="p-3">Revenue</th><th className="p-3 text-red-500">Expenses (Cash)</th><th className="p-3 text-blue-600">Op. Cash (EBITDA)</th><th className="p-3 text-orange-500">Net VAT Paid</th><th className="p-3 font-bold text-green-700 bg-green-50">Cash Balance</th></tr></thead>
+                                        <tbody>
+                                            <tr className="bg-slate-50 border-b border-slate-200"><td className="p-3 text-center font-bold text-slate-500">0 (Start)</td><td className="p-3" colSpan="4"></td><td className="p-3 font-bold text-slate-700 bg-green-50/50">{fmt(c.workingCap)}</td></tr>
+                                            {c.cf.map((row) => (<tr key={row.m} className={`border-b hover:bg-slate-50 ${row.cashFinal < 0 ? 'bg-red-50':''}`}><td className="p-3 text-center font-bold text-slate-400">{row.m}</td><td className="p-3">{fmt(row.rev)}</td><td className="p-3 text-red-400">{fmt(row.expCash)}</td><td className="p-3 font-bold text-blue-600">{fmt(row.netOpCash)}</td><td className={`p-3 font-bold ${row.vatPaid > 0 ? 'text-orange-500' : 'text-green-500'}`}>{fmt(row.vatPaid)}</td><td className={`p-3 font-bold ${row.cashFinal < 0 ? 'text-red-600':'text-green-700 bg-green-50/30'}`}>{fmt(row.cashFinal)}</td></tr>))}
+                                            <tr className="bg-slate-200 font-bold border-t-2 border-slate-400 text-slate-800"><td className="p-3 text-center">รวมทั้งปี (Total)</td><td className="p-3">{fmt(c.cfTotal.rev)}</td><td className="p-3 text-red-600">{fmt(c.cfTotal.expCash)}</td><td className="p-3 text-blue-800">{fmt(c.cfTotal.netOpCash)}</td><td className="p-3 text-orange-600">{fmt(c.cfTotal.tax)}</td><td className="p-3 bg-green-100 text-green-900">{fmt(c.cfTotal.cashFinal)}</td></tr>
+                                        </tbody>
+                                    </table>
+                                    <div className="mt-4 grid grid-cols-1 md:grid-cols-4 gap-4 text-center">
+                                        <div className="p-3 bg-slate-100 rounded border"><div className="text-xs text-slate-500">เงินสดเริ่มต้น (Working Cap)</div><div className="font-bold text-slate-700">{fmt(c.workingCap)}</div></div>
+                                        <div className="p-3 bg-blue-50 rounded border border-blue-100"><div className="text-xs text-blue-500">กำไรดำเนินงานรวม (Op. Cash)</div><div className="font-bold text-blue-700">+{fmt(c.cfTotal.netOpCash)}</div></div>
+                                        <div className="p-3 bg-blue-50 rounded border border-blue-100 text-red-500"><div className="text-xs text-red-500">ผ่อนเงินต้น+ดอกเบี้ย</div><div className="font-bold">-{fmt(c.cfTotal.principal + c.cfTotal.interest)}</div></div>
+                                        <div className="p-3 bg-red-50 rounded border border-red-100"><div className="text-xs text-red-500">หักภาษีจ่ายจริงปีนี้ (Cash Paid)</div><div className="font-bold text-red-700">-{fmt(c.cfTotal.tax)}</div></div>
+                                        <div className="col-span-1 md:col-span-2 p-3 bg-indigo-50 rounded border border-indigo-200 mt-2 md:mt-0"><div className="text-xs text-indigo-600">กำไรสุทธิทางบัญชี (Net Profit)</div><div className="font-bold text-xl text-indigo-800">{fmt(c.netProfit)}</div><div className="text-[10px] text-indigo-400">(รายได้ - ค่าใช้จ่าย - ค่าเสื่อม - ดอกเบี้ย - ภาษี)</div></div>
+                                        <div className="col-span-1 md:col-span-2 p-3 bg-green-50 rounded border border-green-200 mt-2 md:mt-0"><div className="text-xs text-green-600">เงินสดสุทธิสิ้นปี (Cash Balance Year End)</div><div className={`font-bold text-xl ${c.cfTotal.cashFinal < 0 ? 'text-red-600':'text-green-800'}`}>{fmt(c.cfTotal.cashFinal)}</div><div className="text-[10px] text-green-500">(เงินต้น + กำไรเงินสด - ภาษีจ่ายจริง - หนี้)</div></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="card">
+                                <div className="card-header"><div className="card-title">Tax & Depreciation Details</div><div className="flex bg-slate-100 rounded text-[10px] overflow-hidden toggle-switch-container"><button className={`px-2 py-1 ${d.taxPaymentMode==='monthly'?'bg-blue-600 text-white':''}`} onClick={()=>up('taxPaymentMode',null,'monthly')}>Monthly</button><button className={`px-2 py-1 ${d.taxPaymentMode==='annual'?'bg-blue-600 text-white':''}`} onClick={()=>up('taxPaymentMode',null,'annual')}>Annual</button><button className={`px-2 py-1 ${d.taxPaymentMode==='deferred'?'bg-blue-600 text-white':''}`} onClick={()=>up('taxPaymentMode',null,'deferred')}>Deferred</button></div></div>
+                                <div className="card-body"><div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                    <div><h4 className="font-bold text-slate-700 mb-3 border-b pb-2">ค่าเสื่อมราคา (Depreciation Schedule)</h4><table className="w-full text-sm text-right"><thead className="bg-slate-50 text-slate-500"><tr><th className="text-left p-2">สินทรัพย์</th><th className="p-2">มูลค่า</th><th className="p-2">อายุ (ปี)</th><th className="p-2">ค่าเสื่อม/ปี</th></tr></thead><tbody><tr><td className="text-left p-2">โรงงาน</td><td className="p-2">{fmt(d.capex.factory)}</td><td className="p-2">{d.depreciation.factoryYears}</td><td className="p-2">{fmt(c.depFactory)}</td></tr><tr><td className="text-left p-2">เครื่องจักร</td><td className="p-2">{fmt(d.capex.machine)}</td><td className="p-2">{d.depreciation.machineYears}</td><td className="p-2">{fmt(c.depMachine)}</td></tr><tr className="font-bold border-t"><td className="text-left p-2">รวม</td><td></td><td></td><td className="p-2 text-red-500">{fmt(c.annualDepreciation)}</td></tr></tbody></table></div>
+                                    <div><h4 className="font-bold text-slate-700 mb-3 border-b pb-2">ภาษีนิติบุคคล (Corporate Tax)</h4><div className="space-y-2 text-sm"><div className="flex justify-between"><span>กำไรเงินสด (EBITDA)</span><span>{fmt(c.ebitda)}</span></div><div className="flex justify-between text-red-500"><span>หัก ค่าเสื่อมราคา</span><span>-{fmt(c.annualDepreciation)}</span></div><div className="flex justify-between text-red-500"><span>หัก ดอกเบี้ยจ่าย</span><span>-{fmt(c.annualFinanceCost)}</span></div><div className="flex justify-between font-bold text-blue-700 border-t pt-2"><span>กำไรสุทธิทางภาษี (Taxable Income)</span><span>{fmt(c.annualProfitEst)}</span></div></div><div className="bg-slate-50 p-2 rounded text-xs mt-3"><table className="w-full text-right"><thead><tr className="text-slate-400"><th>Tier</th><th>Rate</th><th>Tax</th></tr></thead><tbody>{c.taxDetails.map((t,i)=>(<tr key={i}><td className="text-slate-600">{t.tier}</td><td>{t.rate}%</td><td className="font-medium">{fmt(t.amount)}</td></tr>))}<tr className="border-t font-bold text-red-600"><td colSpan="2" className="pt-1">Total Tax</td><td className="pt-1">{fmt(c.annualTax)}</td></tr></tbody></table></div></div></div></div>
+                            </div>
+
+                            <div className="card">
+                                <div className="card-header"><div className="card-title">Dividend Policy & Shareholder Return</div></div>
+                                <div className="card-body">
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                                        <div className="space-y-3"><h4 className="font-bold text-slate-700 text-sm border-b pb-1">นโยบาย (Policy Inputs)</h4><div className="input-group"><label className="input-label">Payout Ratio (%)</label><input className="input-field" value={d.dividend.payout} onChange={e=>up('dividend','payout',e.target.value)}/></div><div className="input-group"><label className="input-label">จำนวนผู้ถือหุ้น (คน)</label><input className="input-field" value={d.dividend.founders} onChange={e=>up('dividend','founders',e.target.value)}/></div></div>
+                                        <div className="space-y-3"><h4 className="font-bold text-slate-700 text-sm border-b pb-1">ที่มากำไรสุทธิ (Net Profit Breakdown)</h4><div className="flex justify-between text-xs text-slate-500"><span>EBITDA (Year)</span><span>{fmt(c.ebitda)}</span></div><div className="flex justify-between text-xs text-red-400"><span>- ค่าเสื่อมราคา</span><span>-{fmt(c.annualDepreciation)}</span></div><div className="flex justify-between text-xs text-red-400"><span>- ดอกเบี้ยจ่าย</span><span>-{fmt(c.annualFinanceCost)}</span></div><div className="flex justify-between text-xs text-red-400 border-b border-slate-200 pb-1"><span>- ภาษี (Tax Liability)</span><span>-{fmt(c.annualTax)}</span></div><div className="flex justify-between text-sm pt-1"><span className="font-bold text-slate-700">กำไรสุทธิ (Net Profit)</span><span className="font-bold text-blue-600">{fmt(c.netProfit)}</span></div></div>
+                                        <div className="bg-yellow-50 p-4 rounded border border-yellow-200 text-center flex flex-col justify-center"><h4 className="font-bold text-yellow-800 text-sm mb-2">ผลตอบแทนผู้ถือหุ้น (Per Shareholder)</h4><div className="text-xs text-slate-500 mb-1">จากยอดปันผลรวม (Total Pool)</div><div className="text-lg font-bold text-yellow-700 mb-2">{fmt(c.dividendTotal)} ฿</div><div className="border-t border-yellow-200 my-2"></div><div className="text-2xl font-bold text-yellow-700">{fmt(c.dividendPerPersonYear)} <span className="text-sm font-normal text-yellow-600">บาท/ปี</span></div><div className="text-sm text-yellow-600 mt-1">เฉลี่ย {fmt(c.dividendPerPersonMonth)} บาท/เดือน</div></div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div className="card">
+                                <div className="card-header"><div className="card-title">Detailed 5-Year Financial Projection</div><div className="flex gap-4 text-xs items-center"><div className="flex items-center gap-1"><span>Growth:</span><input className="w-12 border rounded text-center" value={d.growth} onChange={e=>up('growth',null,e.target.value)}/>%</div><div className="flex items-center gap-1"><span>Inflation:</span><input className="w-12 border rounded text-center" value={d.inflation} onChange={e=>up('inflation',null,e.target.value)}/>%</div><div className="flex items-center gap-1 font-bold text-blue-600"><span>Discount Rate:</span><input className="w-12 border rounded text-center" value={d.discountRate} onChange={e=>up('discountRate',null,e.target.value)}/>%</div></div></div>
+                                <div className="overflow-x-auto custom-scroll mb-2">
+                                    <table className="w-full text-xs text-right border-collapse min-w-[800px]"><thead className="bg-indigo-900 text-white"><tr><th className="p-3 text-center">Year</th><th className="p-3">Revenue</th><th className="p-3 text-red-300">Op. Expense (Cash)</th><th className="p-3 font-bold text-yellow-300">EBITDA</th><th className="p-3 text-slate-300">Depreciation</th><th className="p-3 text-orange-300">Tax Expense</th><th className="p-3 font-bold text-blue-300 bg-indigo-800">Net Profit</th><th className="p-3 text-green-300">Dividend</th><th className="p-3 font-bold text-green-400 bg-indigo-950">Cash Balance (End)</th></tr></thead>
+                                    <tbody>{projection.data.map((y,i) => (<tr key={i} className="border-b last:border-0 hover:bg-indigo-50"><td className="p-3 text-center font-bold text-indigo-900 bg-gray-50">{y.y}</td><td className="p-3 font-medium">{fmt(y.rev)}</td><td className="p-3 text-red-600">{fmt(y.exp)}</td><td className="p-3 font-bold text-yellow-700 bg-yellow-50">{fmt(y.ebitda)}</td><td className="p-3 text-slate-500">{fmt(y.dep)}</td><td className="p-3 text-orange-600">{fmt(y.tax)}</td><td className="p-3 font-bold text-blue-700 bg-blue-50">{fmt(y.net)}</td><td className="p-3 text-green-700">{fmt(y.div)}</td><td className="p-3 font-bold text-green-800 bg-green-100">{fmt(y.cash)}</td></tr>))}</tbody></table>
+                                </div>
+                                <div className="p-3 bg-blue-50 border-t flex justify-between items-center">
+                                    <div className="text-xs text-slate-500">Net Present Value (NPV) คำนวณจากกระแสเงินสดสุทธิ 5 ปี หักเงินลงทุนเริ่มแรก</div>
+                                    <div className={`text-xl font-bold ${projection.npv > 0 ? 'text-green-600' : 'text-red-600'}`}>NPV: {fmt(projection.npv)}</div>
+                                </div>
+                            </div>
+                        </div>
+
+                    </main>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
