@@ -167,7 +167,7 @@
                 marketing: "Marketing",
                 returnRate: "อัตราคืนสินค้า (%)",
                 fixedParamTitle: "Fixed Cost (Other)",
-                operationTitle: "Operation & Admin", // New Header
+                operationTitle: "Operation & Admin",
                 maintenance: "ซ่อมบำรุง (%)",
                 insurance: "ประกันภัย/ปี",
                 erp: "ERP Software",
@@ -185,6 +185,7 @@
                 payback: "คืนทุน:",
                 month: "เดือน",
                 year: "ปี",
+                day: "วัน",
                 salesTargetTitle: "เป้าหมายการขาย & เครดิต",
                 targetBags: "เป้าขาย (ถุง/เดือน)",
                 sellPrice: "ราคาขาย (บาท/ถุง)",
@@ -282,6 +283,10 @@
                 paddyLabel: "Paddy (Rice Cost)",
                 priceLabel: "Selling Price",
                 perMonth: "บาท/เดือน",
+                paybackNotYet: "ยังไม่คืนทุน",
+                autoChannel: "คำนวณจาก Channel Mix",
+                taxSave: "ประหยัด",
+                capexDesc: "ระยะเวลาคืนทุนเงินลงทุนเริ่มแรก",
 
                 // NEW: Scenario Comparison
                 scenComp: "เปรียบเทียบ 3 ฉากทัศน์ (Scenario Comparison)",
@@ -382,7 +387,7 @@
                 stopSim: "Stop Simulation",
                 
                 // NEW: Capacity Engine
-                capTitle: "⚙️ Capacity Utilization Engine (เครื่องยนต์จำลองกำลังผลิต)",
+                capTitle: "⚙️ 产能利用引擎 (Capacity Utilization Engine)",
                 maxCapInput: "กำลังผลิตสูงสุด (Max Capacity)",
                 utilRate: "อัตราการใช้กำลังผลิต (Utilization)",
                 fcPerUnit: "ต้นทุนคงที่ต่อถุง (Fixed Cost/Unit)",
@@ -536,6 +541,7 @@
                 payback: "回本期:",
                 month: "月",
                 year: "年",
+                day: "天",
                 salesTargetTitle: "销售目标 & 信用",
                 targetBags: "销售目标 (袋/月)",
                 sellPrice: "售价 (泰铢/袋)",
@@ -634,6 +640,11 @@
                 spreadAnalysis: "⚠️ 敏感性分析 (价差: 成本 vs 售价)",
                 paddyLabel: "稻谷成本 (Paddy)",
                 priceLabel: "售价 (Price)",
+                perMonth: "泰铢/月",
+                paybackNotYet: "尚未回本",
+                autoChannel: "根据渠道组合计算",
+                taxSave: "节税",
+                capexDesc: "收回初始投资的期限",
 
                 // NEW: Scenario Comparison
                 scenComp: "场景比较 (Scenario Comparison)",
@@ -779,14 +790,14 @@
                 nmHigh: "✅ 利润丰厚，强劲",
                 nmMed: "⚠️ 利润微薄，注意成本失控",
                 nmLow: "❌ 利润极少，有亏损风险",
-                fixHigh: "⚠️ Fixed Cost สูง! ต้องเร่งยอดขายเพื่อลดต้นทุนต่อหน่วย (Economy of Scale)",
+                fixHigh: "⚠️ 固定成本高！必须加速销售以降低单位成本 (规模经济)",
                 varHigh: "✅ 侧重变动成本很好，随销售额灵活调整",
                 wcOk: "✅ 初始储备资金充足",
                 wcFail: "❌ 初始资金不足！第一个月就有断裂风险",
                 
                 // Ads Checks
                 acosOk: "✅ 很好！广告费未侵蚀利润",
-                acosFail: "❌ สูงไป! ระวังขายดีแต่เจ๊งเพราะค่าแอด",
+                acosFail: "❌ สูงไป! ระวังขายดี但因广告费而亏本",
                 cpaCheck: (v) => `必须确保每件利润 > ${v} 泰铢，否则亏损`,
                 bidCheck: "出价不得超过此价格。如果市场价格更高，必须提高转化率 (CVR) 或客单价 (Basket Size)",
                 ctrLow: "⚠️ CTR 太低，调整视频使其更有趣",
@@ -819,7 +830,7 @@
                 gCpc: "当有人点击广告1次时我们支付的平均价格。\n取决于竞争和广告质量",
                 gCtr: "(点击数 / 展示数) % 看到广告后点击的人。\n越高说明内容越有趣 (TikTok 应 > 1.5-2%)",
                 gCvr: "(订单数 / 点击数) % 点击进来后实际决定购买的人。\n非常重要！如果低需要修改商品页面/价格",
-                gCpm: "广告展示满1,000次需支付的价格。\n用于查看整体广告费用是变贵还是变便宜",
+                gCpm: "价格是广告展示满1,000次需支付的价格。\n用于查看整体广告费用是变贵还是变便宜",
                 gGmv: "平台上发生的总商品销售额 (尚未扣除手续费或退货)",
                 gImp: "广告被发送到客户屏幕显示的次数 (同一个人可重复计算)",
                 gAov: "每单平均购买金额 (越多越好，因为运费和广告费通常不变，使每单利润增加)",
@@ -829,7 +840,7 @@
         };
 
         const SCENARIOS = {
-            // 1. Market Risk
+            // ... (keep SCENARIOS unchanged) ...
             price_war: {
                 category: 1,
                 label: { th: "สงครามราคา (Price War)", cn: "价格战" },
@@ -870,8 +881,6 @@
                     cn: { impact: "销售额损失 40%，客户大量退货", cause: "产品质量问题或售后服务糟糕导致负面新闻", strategy: "立即发表道歉声明，无条件 100% 理赔，并尽快改进 QC" }
                 }
             },
-
-            // 2. Supply & Production Risk
             drought: {
                 category: 2,
                 label: { th: "ภัยแล้งรุนแรง (Drought)", cn: "严重干旱" },
@@ -912,8 +921,6 @@
                     cn: { impact: "电费飙升 40%，运输利润减半", cause: "Ft 费用上涨和柴油价格调整", strategy: "安装屋顶太阳能以长期降低电费，并优化运输车次以实现最大效益" }
                 }
             },
-
-            // 3. Financial Risk
             rate_hike: {
                 category: 3,
                 label: { th: "ดอกเบี้ยขาขึ้น (Rate Hike)", cn: "加息" },
@@ -948,7 +955,6 @@
                 category: 3,
                 label: { th: "เงินเฟ้อพุ่ง (Inflation)", cn: "通货膨胀" },
                 apply: (d) => {
-                     // Need to map HR array to increase salary
                      const newHr = d.hr.map(h => ({ ...h, salary: h.salary * 1.1 }));
                      return { ...d, hr: newHr, paddyPrice: d.paddyPrice * 1.1, unit: { bag: d.unit.bag * 1.1, sticker: d.unit.sticker * 1.1 } };
                 },
@@ -958,13 +964,11 @@
                     cn: { impact: "所有成本同时上涨 10%", cause: "宏观经济状况", strategy: "必须提价 (Reprice) 或缩小商品尺寸 (Shrinkflation) 以保持利润" }
                 }
             },
-
-            // 4. Operational Risk
             staff_turnover: {
                 category: 4,
                 label: { th: "ทีมงานลาออก (Staff Turnover)", cn: "员工流失" },
                 apply: (d) => {
-                     const newHr = d.hr.map(h => ({ ...h, salary: h.salary * 1.1 })); // Hire new staff expensive
+                     const newHr = d.hr.map(h => ({ ...h, salary: h.salary * 1.1 })); 
                      return { ...d, hr: newHr, targetBags: d.targetBags * 0.9, fixedParams: { ...d.fixedParams, other: d.fixedParams.other + 20000 } };
                 },
                 math_desc: { th: "ค่าแรง +10%, ยอดขาย -10%, ค่าหาคน +20,000", cn: "工资 +10%, 销售 -10%, 招聘费 +20,000" },
@@ -976,7 +980,7 @@
             fraud: {
                 category: 4,
                 label: { th: "ทุจริตภายใน (Fraud)", cn: "内部欺诈" },
-                apply: (d) => ({ ...d, yield: d.yield * 0.9 }), // Yield drops effectively simulates stock loss
+                apply: (d) => ({ ...d, yield: d.yield * 0.9 }), 
                 math_desc: { th: "Yield หาย 10% (Stock Loss)", cn: "出米率 -10% (库存损失)" },
                 analysis: {
                     th: { impact: "Yield หายไป 10% (ข้าวหาย)", cause: "ระบบควบคุมภายในหละหลวม", strategy: "ติดตั้งกล้องวงจรปิดจุดชั่งน้ำหนัก และทำ Stock Count ทุกสัปดาห์แบบสุ่ม (Surprise Check)" },
@@ -1005,12 +1009,11 @@
             }
         };
 
-        // --- Initial Data ---
+        // ... (INITIAL data remains the same) ...
         const INITIAL = {
             regCapital: 12000000,
             loan: { amount: 0, rate: 5, term: 5 },
-            // ... (keep existing) ...
-            maxCapacity: 30000, // Added Max Capacity
+            maxCapacity: 30000, 
             capex: { factory: 7000000, machine: 1300000, license: 200000, stock: 1000000 },
             depreciation: { factoryYears: 20, machineYears: 10 }, 
             targetBags: 20000, price: 389,
@@ -1033,7 +1036,6 @@
             ],
             varParams: { elecRate: 600, mktPercent: 14, platformPercent: 12, returnRate: 1 },
             fixedParams: { erp: 9000, campaign: 41000, other: 10000, maintPercent: 2, insurance: 60000, audit: 5000, travel: 10000 },
-            // Campaign Breakdown Details
             campaignDetails: [
                 { id: "camp_gold1", name: "ลุ้นทอง 1 สลึง", qty: 1, costPerUnit: 16500 },
                 { id: "camp_gold2", name: "ลุ้นทอง ครึ่งสลึง", qty: 2, costPerUnit: 8500 },
@@ -1042,24 +1044,22 @@
             logistics: { active: true, percent: 50, profit: 5 },
             dividend: { payout: 50, founders: 3 },
             growth: 10, inflation: 3, monthlyGrowth: 0, discountRate: 10,
-            // New Funnel Assumptions
             mktFunnel: { basketSize: 1.0, cvr: 2.0, ctr: 1.5 },
             scenario: 'base', taxPaymentMode: 'annual',
-            // --- NEW FEATURES ---
             clvParams: { freq: 4, retention: 60 },
             channelMix: { tiktok: 80, shopee: 10, offline: 10 },
             channelFees: { tiktok: 12, shopee: 8, offline: 0 },
-            elasticityParams: { coefficient: 1.5 }, // Price Elasticity of Demand
+            elasticityParams: { coefficient: 1.5 }, 
             seasonalShock: { active: false, startM: 5, endM: 8, costImpact: 20 }
         };
 
         const App = () => {
-            const [toast, setToast] = useState(null); // Notification state
-            const [lang, setLang] = useState('th'); // Language State: 'th' or 'cn'
-            const [activeSim, setActiveSim] = useState(null); // Active Simulation Key
-            const [backupD, setBackupD] = useState(null); // Backup state for simulation revert
+            const [toast, setToast] = useState(null); 
+            const [lang, setLang] = useState('th'); 
+            const [activeSim, setActiveSim] = useState(null); 
+            const [backupD, setBackupD] = useState(null); 
 
-            // Modified translation helper with safety check
+            // t function inside App
             const t = (key) => {
                 if (!TRANS[lang]) return key;
                 return TRANS[lang][key] || key;
@@ -1067,51 +1067,43 @@
 
             const [d, setD] = useState(() => {
                 try {
-                    // 1. Check URL Parameters first
                     const params = new URLSearchParams(window.location.search);
                     const sharedData = params.get('data');
                     if (sharedData) {
-                        const parsed = JSON.parse(fromBase64(sharedData));
-                        // Ensure compatibility with potentially older shared links
+                        const safeBase64 = sharedData.replace(/ /g, '+');
+                        const parsed = JSON.parse(fromBase64(safeBase64));
                         if (!parsed.campaignDetails) parsed.campaignDetails = INITIAL.campaignDetails;
-                        // Default insurance if missing
                         if (parsed.fixedParams && parsed.fixedParams.insurance === undefined) {
                             parsed.fixedParams.insurance = 60000;
                         }
-                        // Default audit/travel if missing
                         if (parsed.fixedParams && parsed.fixedParams.audit === undefined) parsed.fixedParams.audit = 5000;
                         if (parsed.fixedParams && parsed.fixedParams.travel === undefined) parsed.fixedParams.travel = 10000;
 
-                        // Default new features
                         if (!parsed.clvParams) parsed.clvParams = INITIAL.clvParams;
                         if (!parsed.channelMix) parsed.channelMix = INITIAL.channelMix;
                         if (!parsed.channelFees) parsed.channelFees = INITIAL.channelFees;
                         if (!parsed.elasticityParams) parsed.elasticityParams = INITIAL.elasticityParams;
                         if (!parsed.seasonalShock) parsed.seasonalShock = INITIAL.seasonalShock;
-                        if (!parsed.maxCapacity) parsed.maxCapacity = INITIAL.maxCapacity; // Default Max Cap
+                        if (!parsed.maxCapacity) parsed.maxCapacity = INITIAL.maxCapacity; 
                         return parsed;
                     }
 
-                    // 2. Fallback to LocalStorage - Use NEW KEY v43 to force fresh state
                     const savedData = localStorage.getItem('morbSukFinancialData_v43'); 
                     let parsed = savedData ? JSON.parse(savedData) : INITIAL;
                     if (!parsed.campaignDetails) parsed.campaignDetails = INITIAL.campaignDetails;
-                      // Default insurance if missing
                     if (parsed.fixedParams && parsed.fixedParams.insurance === undefined) {
                         parsed.fixedParams.insurance = 60000;
                     }
                     if (parsed.fixedParams && parsed.fixedParams.audit === undefined) parsed.fixedParams.audit = 5000;
                     if (parsed.fixedParams && parsed.fixedParams.travel === undefined) parsed.fixedParams.travel = 10000;
 
-                    // Default new features
                     if (!parsed.clvParams) parsed.clvParams = INITIAL.clvParams;
                     if (!parsed.channelMix) parsed.channelMix = INITIAL.channelMix;
                     if (!parsed.channelFees) parsed.channelFees = INITIAL.channelFees;
                     if (!parsed.elasticityParams) parsed.elasticityParams = INITIAL.elasticityParams;
                     if (!parsed.seasonalShock) parsed.seasonalShock = INITIAL.seasonalShock;
-                    if (!parsed.maxCapacity) parsed.maxCapacity = INITIAL.maxCapacity; // Default Max Cap
+                    if (!parsed.maxCapacity) parsed.maxCapacity = INITIAL.maxCapacity; 
                     
-                    // 3. Migrate old data to have IDs for translation if missing
                     parsed.byProducts = parsed.byProducts.map((p, i) => (!p.id ? { ...p, id: INITIAL.byProducts[i]?.id } : p));
                     parsed.campaignDetails = parsed.campaignDetails.map((c, i) => (!c.id ? { ...c, id: INITIAL.campaignDetails[i]?.id } : c));
 
@@ -1133,34 +1125,27 @@
                     setActiveSim(null);
                     setBackupD(null);
                     localStorage.removeItem('morbSukFinancialData_v43'); 
-                    // Clear URL params without reload
                     window.history.pushState({}, document.title, window.location.pathname);
                 }
             };
 
             const handleSimulate = (key) => {
                 if (activeSim === key) {
-                    // STOP SIMULATION
                     if (backupD) {
-                        setD(backupD); // Restore exactly what was there
+                        setD(backupD); 
                         setBackupD(null);
                     } else {
-                        applyScenario('base'); // Fallback only if no backup
+                        applyScenario('base'); 
                     }
                     setActiveSim(null);
                 } else {
-                    // START OR SWITCH SIMULATION
                     let baseState;
-                    
                     if (activeSim && backupD) {
-                        // Switching from one risk to another: Use original backup as base
                         baseState = backupD;
                     } else {
-                        // Starting new risk from normal state: Create backup
-                        baseState = JSON.parse(JSON.stringify(d)); // Deep clone
+                        baseState = JSON.parse(JSON.stringify(d)); 
                         setBackupD(baseState);
                     }
-                    
                     const newD = SCENARIOS[key].apply(baseState);
                     setD(newD);
                     setActiveSim(key);
@@ -1173,15 +1158,31 @@
                 try {
                     const jsonString = JSON.stringify(d);
                     const encoded = toBase64(jsonString);
-                    const url = `${window.location.origin}${window.location.pathname}?data=${encoded}`;
-                    
-                    navigator.clipboard.writeText(url).then(() => {
-                        setToast("คัดลอกลิงก์แล้ว! ส่งให้เพื่อนได้เลย (Copied!)");
-                        setTimeout(() => setToast(null), 3000);
-                        // Update browser URL to reflect current state
-                        window.history.pushState({}, document.title, `?data=${encoded}`);
-                    });
+                    const url = `${window.location.origin}${window.location.pathname}?data=${encodeURIComponent(encoded)}`;
+                    const textArea = document.createElement("textarea");
+                    textArea.value = url;
+                    textArea.style.position = "fixed";
+                    textArea.style.left = "-9999px";
+                    textArea.style.top = "0";
+                    document.body.appendChild(textArea);
+                    textArea.focus();
+                    textArea.select();
+                    try {
+                        const successful = document.execCommand('copy');
+                        if (successful) {
+                            setToast("คัดลอกลิงก์แล้ว! ส่งให้เพื่อนได้เลย (Copied!)");
+                            setTimeout(() => setToast(null), 3000);
+                            window.history.pushState({}, document.title, `?data=${encodeURIComponent(encoded)}`);
+                        } else {
+                            prompt("Copy this link:", url);
+                        }
+                    } catch (err) {
+                        console.error('Fallback: Oops, unable to copy', err);
+                        prompt("Copy this link:", url);
+                    }
+                    document.body.removeChild(textArea);
                 } catch (e) {
+                    console.error(e);
                     alert("เกิดข้อผิดพลาดในการสร้างลิงก์");
                 }
             };
@@ -1199,7 +1200,6 @@
                 c.cf.forEach(row => {
                     csvContent += `${row.m},${row.revCashIn},${row.expCash},${row.netOpCash},${row.tax},${row.cashFinal}\n`;
                 });
-
                 const encodedUri = encodeURI(csvContent);
                 const link = document.createElement("a");
                 link.setAttribute("href", encodedUri);
@@ -1210,22 +1210,16 @@
 
             const applyScenario = (type) => {
                 let newData = { ...d, scenario: type };
-                
-                // Note: We don't reset price here anymore because this function is ONLY for the Scenario buttons (Base/Worst/Best)
-                // which explicitly set their own defaults below.
-                
                 if (type === 'worst') { newData.targetBags = 14000; newData.paddyPrice = 13500; newData.growth = 0; newData.varParams.mktPercent = 18; } 
                 else if (type === 'base') { newData.targetBags = 20000; newData.paddyPrice = 12000; newData.growth = 10; newData.varParams.mktPercent = 14; } 
                 else if (type === 'best') { newData.targetBags = 25000; newData.paddyPrice = 11500; newData.growth = 15; newData.varParams.mktPercent = 12; }
-                
                 setD(newData);
-                setActiveSim(null); // Reset risk sim if changing scenario
-                setBackupD(null);   // Clear backup since we changed baseline
+                setActiveSim(null); 
+                setBackupD(null);
             };
 
             const up = (k, sk, v) => setD(p => ({...p, [k]: sk ? {...p[k], [sk]: +v} : +v}));
             const upArr = (k, i, f, v) => {
-                // If user edits name, remove ID so translation stops overriding user input
                 const n = [...d[k]]; 
                 if (f === 'name') delete n[i].id;
                 n[i][f] = f==='name'||f==='role'?v:+v; 
@@ -1236,13 +1230,9 @@
             const upCampaign = (idx, field, val) => {
                 setD(prev => {
                     const newDetails = [...prev.campaignDetails];
-                    // If user edits name, remove ID
                     if (field === 'name') delete newDetails[idx].id;
-                    
                     newDetails[idx][field] = field === 'name' ? val : +val;
-                    
                     const newTotal = newDetails.reduce((sum, item) => sum + (item.qty * item.costPerUnit), 0);
-                    
                     return {
                         ...prev,
                         campaignDetails: newDetails,
@@ -1274,18 +1264,20 @@
                 });
             };
 
+            // Calculate Financials - Defined INSIDE App component
             const calculateFinancials = (data) => {
+                // Ensure t is available or use fallback
+                const _t = (k) => TRANS[lang] ? (TRANS[lang][k] || k) : k;
+
                 const totalCapex = Object.values(data.capex).reduce((a,b)=>a+b,0);
                 const totalSources = data.regCapital + (data.loan.amount || 0);
                 const workingCap = totalSources - totalCapex;
                 const annualDepreciation = (data.capex.factory / data.depreciation.factoryYears) + (data.capex.machine / data.depreciation.machineYears);
 
-                // Maintenance
                 const maintPercent = (data.fixedParams.maintPercent !== undefined && data.fixedParams.maintPercent !== null) ? data.fixedParams.maintPercent : 2;
                 const maintenanceCostYearly = data.capex.machine * (maintPercent / 100);
                 const maintenanceCostMonthly = maintenanceCostYearly / 12;
 
-                // Insurance (Yearly to Monthly)
                 const insuranceYearly = (data.fixedParams.insurance !== undefined) ? data.fixedParams.insurance : 60000;
                 const insuranceMonthly = insuranceYearly / 12;
 
@@ -1305,21 +1297,16 @@
 
                 const logIncome = (data.targetBags * (data.logistics.percent/100)) * data.logistics.profit;
 
-                // Refund Logic
                 const refundTotal = riceRev * ((data.varParams.returnRate || 0) / 100);
 
-                // VAT Logic
-                // Base revenue for VAT should be net of refunds
                 const baseRev = (riceRev - refundTotal) + totalByProductIncome + logIncome; 
                 const totalVatOut = baseRev - (baseRev / 1.07);
 
-                // Channel Mix Calculation
                 const cm = data.channelMix || { tiktok: 80, shopee: 10, offline: 10 };
                 const cFees = data.channelFees || { tiktok: 12, shopee: 8, offline: 0 }; 
                 const blendedFeePct = (cm.tiktok * cFees.tiktok + cm.shopee * cFees.shopee + cm.offline * cFees.offline) / 100;
                 const platformTotal = riceRev * (blendedFeePct/100); 
 
-                // Expenses
                 const riceTotal = paddyBudget; 
                 const packTotal = (data.unit.bag + data.unit.sticker) * data.targetBags; 
                 const elecTotal = data.varParams.elecRate * paddyTons; 
@@ -1327,7 +1314,6 @@
                 
                 const totalMarketingBudget = mktTotal; 
 
-                // HR & SSO
                 let baseSalaryTotal = 0;
                 let ssoTotal = 0;
                 const hrCosts = data.hr.map(h => {
@@ -1340,7 +1326,6 @@
                 });
                 const salaryTotal = baseSalaryTotal + ssoTotal; 
                 
-                // Fixed Costs Summation
                 const fixedCostItems = 
                     data.fixedParams.erp + 
                     data.fixedParams.campaign + 
@@ -1352,7 +1337,6 @@
 
                 const fixedCashTotal = salaryTotal + fixedCostItems; 
 
-                // Input VAT Calculation
                 const vatableExpenses = packTotal + elecTotal + platformTotal + mktTotal;
                 const totalVatIn = vatableExpenses - (vatableExpenses / 1.07);
                 
@@ -1362,7 +1346,6 @@
                 const riceCostUnit = (5 / (data.yield/100)) * (data.paddyPrice/1000);
                 const matCostUnit = riceCostUnit + data.unit.bag + data.unit.sticker;
 
-                // Marketing Funnel
                 const basketSize = data.mktFunnel?.basketSize || 1;
                 const cvr = data.mktFunnel?.cvr || 2.0;
                 const ctr = data.mktFunnel?.ctr || 1.5;
@@ -1377,12 +1360,10 @@
                 const roas = totalMarketingBudget > 0 ? riceRev / totalMarketingBudget : 0;
                 const acos = riceRev > 0 ? (totalMarketingBudget / riceRev) * 100 : 0;
 
-                // Breakeven ROAS Calculation
                 const varCostPerUnit = matCostUnit + (data.varParams.elecRate * (5 / (data.yield/100)) / 1000) + (data.price * blendedFeePct/100);
                 const marginPerUnit = data.price - varCostPerUnit;
                 const beRoasVal = marginPerUnit > 0 ? data.price / marginPerUnit : 999;
 
-                // CLV Calculation
                 const clvP = data.clvParams || { freq: 4, retention: 60 };
                 const grossMarginPct = riceRev > 0 ? ((riceRev - (riceTotal + packTotal + elecTotal + salaryTotal)) / riceRev) : 0; 
                 const aov = basketSize * data.price;
@@ -1393,7 +1374,6 @@
                 const lifetimeValue = churn > 0 ? (ltv1 / churn) : 0; 
                 const ltvCac = cpa > 0 ? lifetimeValue / cpa : 0;
 
-                // Elasticity Simulation Data
                 const elasticityData = [];
                 const baseVol = data.targetBags;
                 const baseP = data.price;
@@ -1473,7 +1453,6 @@
 
                     const growthFactor = Math.pow(1 + data.monthlyGrowth/100, i - 1);
                     
-                    // Apply Seasonality to Rice Cost
                     let monthlyRiceCost = riceTotal * growthFactor;
                     if (season.active && i >= season.startM && i <= season.endM) {
                         monthlyRiceCost *= (1 + season.costImpact/100);
@@ -1482,7 +1461,8 @@
                     const mRice = monthlyRiceCost;
                     const mVatableVar = (packTotal + elecTotal + platformTotal + mktTotal) * growthFactor;
                     const mSalary = salaryTotal;
-                    const mVatableFixed = (data.fixedParams.erp + data.fixedParams.campaign + data.fixedParams.other + maintenanceCostMonthly + insuranceMonthly);
+                    const mVatableFixed = fixedCostItems; 
+                    
                     const mExpCash = mRice + mVatableVar + mSalary + mVatableFixed; 
                     
                     const mOutVat = totalVatOut * growthFactor;
@@ -1588,12 +1568,12 @@
                 const debtService = annualPrincipalPaid + annualFinanceCost;
                 const dscr = debtService > 0 ? annualOperatingCashProfit / debtService : (annualOperatingCashProfit > 0 ? 999 : 0);
 
-                let paybackMonth = "ยังไม่คืนทุน";
+                let paybackMonth = _t('paybackNotYet');
                 const annualCashFlow = annualOperatingCashProfit - totalTaxEst - annualFinanceCost;
                 if (annualCashFlow > 0) {
                       const monthsToPayback = totalSources / (annualCashFlow/12);
-                      if (monthsToPayback <= 12) paybackMonth = `${Math.ceil(monthsToPayback)} ${t('month')}`;
-                      else paybackMonth = `${(monthsToPayback/12).toFixed(1)} ${t('year')}`;
+                      if (monthsToPayback <= 12) paybackMonth = `${Math.ceil(monthsToPayback)} ${_t('month')}`;
+                      else paybackMonth = `${(monthsToPayback/12).toFixed(1)} ${_t('year')}`;
                 }
 
                 const vatBreakdown = {
@@ -1623,11 +1603,9 @@
                     }
                 };
                 
-                // Capacity Engine Calculations
                 const maxCapacity = data.maxCapacity || 30000;
                 const utilizationPct = (data.targetBags / maxCapacity) * 100;
                 const fixedCostPerUnit = data.targetBags > 0 ? fixedCashTotal / data.targetBags : 0;
-                // Variable Cost Per Unit (Approx for display)
                 const varCostPerUnitDisplay = data.targetBags > 0 ? (totalVar - totalVatOut) / data.targetBags : 0;
 
                 return {
@@ -1648,7 +1626,6 @@
                     funnelMetrics, blendedFeePct, elasticityData,
                     yrProj: null,
                     refundTotal,
-                    // Capacity Data
                     utilizationPct, fixedCostPerUnit, varCostPerUnitDisplay
                 };
             };
@@ -1669,14 +1646,12 @@
                     results.push(row);
                 });
                 return results;
-            }, [d]);
+            }, [d, lang]);
 
-            // NEW: Spread Sensitivity (Paddy Price vs Selling Price)
             const spreadData = useMemo(() => {
                 const results = [];
-                const paddySteps = [0.9, 1.0, 1.1]; // Row: Paddy Cost -10%, Base, +10%
-                const sellPriceSteps = [0.9, 1.0, 1.1]; // Col: Sell Price -10%, Base, +10%
-                
+                const paddySteps = [0.9, 1.0, 1.1]; 
+                const sellPriceSteps = [0.9, 1.0, 1.1]; 
                 paddySteps.forEach(costStep => {
                     const row = [];
                     sellPriceSteps.forEach(priceStep => {
@@ -1693,53 +1668,34 @@
                     results.push(row);
                 });
                 return results;
-            }, [d]);
+            }, [d, lang]);
 
-            // NEW: Scenario Comparison Data
             const scenarioComparison = useMemo(() => {
                 const scenarios = ['worst', 'base', 'best'];
                 return scenarios.map(type => {
-                    let sData = JSON.parse(JSON.stringify(d)); // Clone current
-                    // Apply logic same as applyScenario function
+                    let sData = JSON.parse(JSON.stringify(d)); 
                     if (type === 'worst') { sData.targetBags = 14000; sData.paddyPrice = 13500; sData.growth = 0; sData.varParams.mktPercent = 18; } 
                     else if (type === 'base') { sData.targetBags = 20000; sData.paddyPrice = 12000; sData.growth = 10; sData.varParams.mktPercent = 14; } 
                     else if (type === 'best') { sData.targetBags = 25000; sData.paddyPrice = 11500; sData.growth = 15; sData.varParams.mktPercent = 12; }
-                    
-                    // We need to re-calculate minimal required fields for profit/cash
-                    // To avoid infinite loop or heavy calc, we just call calculateFinancials for each
                     const res = calculateFinancials(sData);
                     return { type, netProfit: res.netProfit, cashFinal: res.cfTotal.cashFinal };
                 });
-            }, [d]); // Recalc when d changes (base params might change)
+            }, [d, lang]); 
 
-            // NEW: Ads Sensitivity Matrix (CVR x CTR => ROAS)
             const adsMatrixData = useMemo(() => {
                 if (!c) return [];
-                const baseCPM = c.funnelMetrics.cpm || 150; // Fallback to 150 if 0
+                const baseCPM = c.funnelMetrics.cpm || 150; 
                 const basePrice = d.price;
                 const baseBasket = d.mktFunnel.basketSize;
-                
-                // Rows: CVR (Y-axis) -20%, Base, +20%
                 const cvrSteps = [0.8, 1.0, 1.2]; 
-                // Cols: CTR (X-axis) -20%, Base, +20%
                 const ctrSteps = [0.8, 1.0, 1.2];
-
                 const results = [];
                 cvrSteps.forEach(cvrMult => {
                     const row = [];
                     ctrSteps.forEach(ctrMult => {
                         const simCVR = d.mktFunnel.cvr * cvrMult;
                         const simCTR = d.mktFunnel.ctr * ctrMult;
-                        
-                        // Formula derivation:
-                        // ROAS = Revenue / Cost
-                        // Revenue per 1000 Imp = (1000 * CTR% * CVR% * Basket * Price)
-                        // Cost per 1000 Imp = CPM
-                        // ROAS = (1000 * (CTR/100) * (CVR/100) * Basket * Price) / CPM
-                        //       = (Basket * Price * CTR * CVR) / (CPM / 10)
-                        
                         const simRoas = (baseBasket * basePrice * simCVR * simCTR) / (baseCPM / 10);
-                        
                         row.push({
                             cvrLabel: simCVR.toFixed(2) + '%',
                             ctrLabel: simCTR.toFixed(2) + '%',
@@ -1749,7 +1705,7 @@
                     results.push(row);
                 });
                 return results;
-            }, [d, c]);
+            }, [d, c, lang]);
 
             useEffect(() => { 
                 const financials = calculateFinancials(d);
@@ -1757,34 +1713,30 @@
             }, [d, lang]);
 
             const projection = useMemo(() => {
+                // Ensure t is available or use fallback
+                const _t = (k) => TRANS[lang] ? (TRANS[lang][k] || k) : k;
+
                 if(!c) return { data: [], npv: 0 }; 
                 const yrProj = [];
                 let yCash = c.cfTotal.cashFinal;
                 const y1TaxPaid = (d.taxPaymentMode === 'annual' || d.taxPaymentMode === 'monthly') ? c.annualTax : 0;
-                
                 const y1ExpCash = c.cfTotal.expCash + y1TaxPaid + c.cfTotal.interest + c.cfTotal.principal;
                 yCash -= c.dividendTotal;
-                
                 let accumulatedLoss = 0;
                 if (c.annualProfitEst < 0) accumulatedLoss = Math.abs(c.annualProfitEst);
 
                 yrProj.push({ y: 1, rev: c.cfTotal.rev, exp: y1ExpCash, ebitda: c.ebitda, dep: c.annualDepreciation, tax: c.annualTax, net: c.netProfit, div: c.dividendTotal, cash: yCash, taxSaving: 0 });
 
                 let prevRev = c.cfTotal.rev;
-                
                 const totalExpY1 = c.cfTotal.expCash;
                 const fixedComponentY1 = c.salaryTotal + (c.section7Total - c.elecTotal - c.platformTotal - c.mktTotal); 
                 const varComponentY1 = totalExpY1 - fixedComponentY1;
-
                 let prevVar = varComponentY1;
                 let prevFixed = fixedComponentY1;
-
                 let prevTaxLiability = d.taxPaymentMode === 'deferred' ? c.annualTax : 0;
                 let remainingLoan = d.loan.amount - c.annualPrincipalPaid;
-
                 let npv = -c.totalSources; 
                 const discountRate = (d.discountRate || 10) / 100;
-
                 const calcTax = (profit) => {
                     if(profit <= 300000) return 0;
                     let tax = 0;
@@ -1796,26 +1748,20 @@
                 for(let y=2;y<=5;y++) {
                     const growthRate = d.growth / 100;
                     const inflationRate = d.inflation / 100;
-                    
                     const yRev = prevRev * (1 + growthRate);
                     const yVar = prevVar * (1 + growthRate); 
                     const yFixed = prevFixed * (1 + inflationRate); 
                     const yExpExclTax = yVar + yFixed;
-
                     const yGrossMargin = yRev - yExpExclTax;
                     const yVatLiability = yGrossMargin * (7/107);
                     const yEbitda = yGrossMargin - yVatLiability; 
-
                     const annualPrincipal = c.annualPrincipalPaid;
                     remainingLoan = Math.max(0, remainingLoan - annualPrincipal);
                     const yInterest = remainingLoan * (d.loan.rate / 100); 
                     const yPrincipal = remainingLoan > 0 ? annualPrincipal : 0;
-                    
                     const yTaxable = yEbitda - c.annualDepreciation - yInterest;
-                    
                     let taxableAfterShield = yTaxable;
                     let usedLoss = 0;
-                    
                     if (yTaxable > 0 && accumulatedLoss > 0) {
                         usedLoss = Math.min(yTaxable, accumulatedLoss);
                         taxableAfterShield = yTaxable - usedLoss;
@@ -1824,20 +1770,15 @@
                         accumulatedLoss += Math.abs(yTaxable);
                         taxableAfterShield = 0;
                     }
-
                     const taxNormal = calcTax(yTaxable > 0 ? yTaxable : 0);
                     const taxShielded = calcTax(taxableAfterShield);
                     const taxSaving = taxNormal - taxShielded;
                     const yTax = taxShielded;
-
                     let taxPaidThisYear = d.taxPaymentMode === 'deferred' ? prevTaxLiability : yTax;
                     if (d.taxPaymentMode === 'deferred') prevTaxLiability = yTax;
-
                     const yNetAcc = yTaxable - yTax; 
                     const yDiv = yNetAcc > 0 ? yNetAcc * (d.dividend.payout / 100) : 0;
-                    
                     yCash += (yEbitda - taxPaidThisYear - yDiv - yInterest - yPrincipal);
-                    
                     yrProj.push({ y, rev: yRev, exp: yExpExclTax + taxPaidThisYear + yInterest + yPrincipal, ebitda: yEbitda, dep: c.annualDepreciation, tax: yTax, net: yNetAcc, div: yDiv, cash: yCash, taxSaving });
                     prevRev = yRev;
                     prevVar = yVar;
@@ -1848,9 +1789,8 @@
                       const cashFlow = yr.ebitda - yr.tax;
                       npv += cashFlow / Math.pow(1 + discountRate, yr.y);
                 });
-
                 return { data: yrProj, npv };
-            }, [c, d.growth, d.inflation, d.dividend.payout, d.taxPaymentMode, d.discountRate, d.loan.amount, d.loan.rate, d.loan.term]);
+            }, [c, d.growth, d.inflation, d.dividend.payout, d.taxPaymentMode, d.discountRate, d.loan.amount, d.loan.rate, d.loan.term, lang]);
 
             if(c && projection.data.length > 0) {
                 c.yrProj = projection;
@@ -2043,7 +1983,7 @@
                                     <div className="input-row">
                                         <span className="text-sm flex flex-col">
                                             <span>{t('platform')} (%)</span>
-                                            <span className="text-[9px] text-slate-400 italic">(Auto from Channel Mix)</span>
+                                            <span className="text-[9px] text-slate-400 italic">({t('autoChannel')})</span>
                                         </span>
                                         <div className="flex items-center gap-2">
                                             <input type="number" className="input-field w-16 bg-slate-100 text-slate-500 cursor-not-allowed" value={(c.blendedFeePct || 0).toFixed(2)} disabled />
@@ -2614,7 +2554,7 @@
                         {/* --- BOTTOM --- */}
                         <div className="lg:col-span-12 space-y-6">
                              <div className="card">
-                                <div className="card-header"><div className="card-title text-slate-700">{t('detailedCashflow')}</div><div className="flex items-center gap-2 text-xs"><span className="text-slate-500">{t('monthlyGrowth')}</span><input type="number" className="border border-slate-300 rounded px-2 py-1 w-16 text-right" value={d.monthlyGrowth} onChange={e=>up('monthlyGrowth', null, e.target.value)} /><span className="text-slate-500">%</span><span className="ml-2 text-slate-400 font-bold bg-slate-100 px-2 py-1 rounded">Credit: {d.creditTerm} Days</span></div></div>
+                                <div className="card-header"><div className="card-title text-slate-700">{t('detailedCashflow')}</div><div className="flex items-center gap-2 text-xs"><span className="text-slate-500">{t('monthlyGrowth')}</span><input type="number" className="border border-slate-300 rounded px-2 py-1 w-16 text-right" value={d.monthlyGrowth} onChange={e=>up('monthlyGrowth', null, e.target.value)} /><span className="text-slate-500">%</span><span className="ml-2 text-slate-400 font-bold bg-slate-100 px-2 py-1 rounded">Credit: {d.creditTerm} {t('day')}</span></div></div>
                                 <div className="overflow-x-auto custom-scroll">
                                     <table className="w-full text-xs text-right border-collapse min-w-[800px]">
                                         <thead className="bg-slate-100 text-slate-600"><tr><th className="p-3 text-center">{t('month')}</th><th className="p-3 text-slate-400">{t('cfSales')}</th><th className="p-3 text-blue-700 font-bold">{t('cfInflow')}</th><th className="p-3 text-red-500">{t('cfExp')}</th><th className="p-3 text-orange-500">{t('cfVat')}</th><th className="p-3 text-blue-600">{t('cfOpCash')}</th><th className="p-3 font-bold text-green-700 bg-green-50">{t('cfBalance')}</th></tr></thead>
@@ -2686,7 +2626,7 @@
                                 <div className="card-header"><div className="card-title">{t('projectionTitle')}</div><div className="flex gap-4 text-xs items-center"><div className="flex items-center gap-1"><span>Growth:</span><input className="w-12 border rounded text-center" value={d.growth} onChange={e=>up('growth',null,e.target.value)}/>%</div><div className="flex items-center gap-1"><span>Inflation:</span><input className="w-12 border rounded text-center" value={d.inflation} onChange={e=>up('inflation',null,e.target.value)}/>%</div><div className="flex items-center gap-1 font-bold text-blue-600"><span>Discount Rate:</span><input className="w-12 border rounded text-center" value={d.discountRate} onChange={e=>up('discountRate',null,e.target.value)}/>%</div></div></div>
                                 <div className="overflow-x-auto custom-scroll mb-2">
                                     <table className="w-full text-xs text-right border-collapse min-w-[800px]"><thead className="bg-indigo-900 text-white"><tr><th className="p-3 text-center">{t('pyYear')}</th><th className="p-3">{t('pyRev')}</th><th className="p-3 text-red-300">{t('pyExp')}</th><th className="p-3 font-bold text-yellow-300">{t('pyEbitda')}</th><th className="p-3 text-slate-300">{t('pyDep')}</th><th className="p-3 text-orange-300">{t('pyTax')}</th><th className="p-3 font-bold text-blue-300 bg-indigo-800">{t('pyNet')}</th><th className="p-3 text-green-300">{t('pyDiv')}</th><th className="p-3 font-bold text-green-400 bg-indigo-950">{t('pyCashEnd')}</th></tr></thead>
-                                    <tbody>{projection.data.map((y,i) => (<tr key={i} className="border-b last:border-0 hover:bg-indigo-50"><td className="p-3 text-center font-bold text-indigo-900 bg-gray-50">{y.y}</td><td className="p-3 font-medium">{fmt(y.rev)}</td><td className="p-3 text-red-600">{fmt(y.exp)}</td><td className="p-3 font-bold text-yellow-700 bg-yellow-50">{fmt(y.ebitda)}</td><td className="p-3 text-slate-500">{fmt(y.dep)}</td><td className="p-3 text-orange-600">{fmt(y.tax)}{y.taxSaving > 0 && <div className="text-[9px] text-green-500">(Save {fmt(y.taxSaving)})</div>}</td><td className="p-3 font-bold text-blue-700 bg-blue-50">{fmt(y.net)}</td><td className="p-3 text-green-700">{fmt(y.div)}</td><td className="p-3 font-bold text-green-800 bg-green-100">{fmt(y.cash)}</td></tr>))}</tbody></table>
+                                    <tbody>{projection.data.map((y,i) => (<tr key={i} className="border-b last:border-0 hover:bg-indigo-50"><td className="p-3 text-center font-bold text-indigo-900 bg-gray-50">{y.y}</td><td className="p-3 font-medium">{fmt(y.rev)}</td><td className="p-3 text-red-600">{fmt(y.exp)}</td><td className="p-3 font-bold text-yellow-700 bg-yellow-50">{fmt(y.ebitda)}</td><td className="p-3 text-slate-500">{fmt(y.dep)}</td><td className="p-3 text-orange-600">{fmt(y.tax)}{y.taxSaving > 0 && <div className="text-[9px] text-green-500">({t('taxSave')} {fmt(y.taxSaving)})</div>}</td><td className="p-3 font-bold text-blue-700 bg-blue-50">{fmt(y.net)}</td><td className="p-3 text-green-700">{fmt(y.div)}</td><td className="p-3 font-bold text-green-800 bg-green-100">{fmt(y.cash)}</td></tr>))}</tbody></table>
                                 </div>
                                 <div className="p-3 bg-blue-50 border-t flex justify-between items-center">
                                     <div className="text-xs text-slate-500">{t('npvDesc')}</div>
@@ -2797,7 +2737,7 @@
                                             {/* CAPEX */}
                                             <div className="p-3 border rounded bg-white hover:shadow-sm">
                                                 <div className="flex justify-between text-xs text-slate-500 mb-1"><span>CAPEX Break-even</span><span className="text-slate-700 font-bold">{c.paybackMonth}</span></div>
-                                                <div className="text-[10px] text-slate-600">Period to recover initial investment</div>
+                                                <div className="text-[10px] text-slate-600">{t('capexDesc')}</div>
                                             </div>
 
                                         </div>
