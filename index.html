@@ -1674,9 +1674,9 @@
                 const scenarios = ['worst', 'base', 'best'];
                 return scenarios.map(type => {
                     let sData = JSON.parse(JSON.stringify(d)); 
-                    if (type === 'worst') { sData.targetBags = 14000; sData.paddyPrice = 13500; sData.growth = 0; sData.varParams.mktPercent = 18; } 
-                    else if (type === 'base') { sData.targetBags = 20000; sData.paddyPrice = 12000; sData.growth = 10; sData.varParams.mktPercent = 14; } 
-                    else if (type === 'best') { sData.targetBags = 25000; sData.paddyPrice = 11500; sData.growth = 15; sData.varParams.mktPercent = 12; }
+                    if (type === 'worst') { sData.targetBags = 8000; sData.paddyPrice = 18000; sData.growth = 0; sData.varParams.mktPercent = 20; } 
+                    else if (type === 'base') { sData.targetBags = 15000; sData.paddyPrice = 16000; sData.growth = 10; sData.varParams.mktPercent = 15; } 
+                    else if (type === 'best') { sData.targetBags = 20000; sData.paddyPrice = 15000; sData.growth = 15; sData.varParams.mktPercent = 13; }
                     const res = calculateFinancials(sData);
                     return { type, netProfit: res.netProfit, cashFinal: res.cfTotal.cashFinal };
                 });
@@ -2965,4 +2965,5 @@
     </script>
 </body>
 </html>
+
 
