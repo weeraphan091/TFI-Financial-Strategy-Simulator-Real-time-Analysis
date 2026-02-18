@@ -395,6 +395,15 @@
                 capWarning: "⚠️ เกินกำลังผลิต! อาจมีค่า OT หรือเครื่องจักรพัง",
                 capOptimal: "✅ ช่วงเหมาะสม (Optimal) ต้นทุนคุ้มค่า",
                 capWaste: "❌ ใช้งานน้อยไป (Under) ต้นทุนต่อหน่วยสูง",
+                
+                // NEW: Monte Carlo
+                mcTitle: "🎲 Monte Carlo Simulation (ความน่าจะเป็นของกำไร)",
+                mcDesc: "จำลอง 1,000 เหตุการณ์ โดยเหวี่ยงค่า CTR, CVR และ Impressions ±20%",
+                mcP10: "P10 (Worst 10%)",
+                mcP50: "P50 (Median)",
+                mcP90: "P90 (Best 10%)",
+                mcProb: "Probability",
+                mcProfit: "Net Profit",
 
                 // AI Builders
                 meaning: "ความหมาย",
@@ -753,6 +762,15 @@
                 capWarning: "⚠️ 超负荷！可能产生加班费或机器故障",
                 capOptimal: "✅ 最佳范围 (Optimal) 成本效益高",
                 capWaste: "❌ ใช้งานน้อยไป (Under) 单位成本高",
+
+                // NEW: Monte Carlo
+                mcTitle: "🎲 Monte Carlo Simulation (利润概率模拟)",
+                mcDesc: "模拟 1000 次，CTR、CVR 和曝光量波动 ±20%",
+                mcP10: "P10 (最差 10%)",
+                mcP50: "P50 (中位数)",
+                mcP90: "P90 (最好 10%)",
+                mcProb: "概率",
+                mcProfit: "净利润",
 
                 // AI Builders
                 meaning: "含义",
@@ -1650,7 +1668,7 @@
                     funnelMetrics, blendedFeePct, elasticityData,
                     yrProj: null,
                     refundTotal,
-                    utilizationPct, fixedCostPerUnit, varCostPerUnitDisplay
+                    utilizationPct, fixedCostPerUnit, varCostPerUnitDisplay, mktTotal
                 };
             };
 
@@ -1745,6 +1763,103 @@
                 });
                 return results;
             }, [d, c, lang]);
+
+            // NEW: Monte Carlo Simulation (Fixed: Monthly Calculation)
+            const monteCarloResults = useMemo(() => {
+                if (!c) return null;
+
+                // 1. Get Modes (Base Values) from Monthly Targets
+                const modeImp = c.funnelMetrics.impressions || 0; // Monthly Impressions
+                const modeCtr = d.mktFunnel.ctr || 0;
+                const modeCvr = d.mktFunnel.cvr || 0;
+                const modeCpm = c.funnelMetrics.cpm || 0;
+
+                // Cost/Price Factors
+                const price = d.price;
+                const basket = d.mktFunnel.basketSize;
+                const varCostPerUnit = c.varCostPerUnitDisplay; 
+                
+                // Monthly Fixed Costs
+                const monthlyFixedCash = c.fixedCashTotal; 
+                const monthlyDepreciation = c.annualDepreciation / 12;
+                const monthlyFinance = c.annualFinanceCost / 12;
+
+                const iterations = 1000;
+                const results = [];
+
+                const triangular = (min, max, mode) => {
+                    const u = Math.random();
+                    const c = (mode - min) / (max - min);
+                    if (u < c) return min + Math.sqrt(u * (max - min) * (mode - min));
+                    return max - Math.sqrt((1 - u) * (max - min) * (max - mode));
+                };
+
+                // Tax Calc Function (Annual Scale)
+                const calcTaxAnnual = (profitYear) => {
+                    if(profitYear <= 300000) return 0;
+                    let tax = 0;
+                    if(profitYear > 300000) tax += Math.min(profitYear - 300000, 2700000) * 0.15;
+                    if(profitYear > 3000000) tax += (profitYear - 3000000) * 0.20;
+                    return tax;
+                };
+
+                for (let i = 0; i < iterations; i++) {
+                    // Randomize +/- 20%
+                    const sImp = triangular(modeImp * 0.8, modeImp * 1.2, modeImp);
+                    const sCtr = triangular(modeCtr * 0.8, modeCtr * 1.2, modeCtr);
+                    const sCvr = triangular(modeCvr * 0.8, modeCvr * 1.2, modeCvr);
+
+                    // Calc Flow (Monthly)
+                    const sClicks = sImp * (sCtr / 100);
+                    const sOrders = sClicks * (sCvr / 100); 
+                    const sUnits = sOrders * basket;
+
+                    // Financials (Monthly)
+                    const sRev = sUnits * price;
+                    const sRevExVat = sRev / 1.07;
+                    
+                    const sAdCost = (sImp / 1000) * modeCpm;
+                    
+                    // Recalculate VarCost without Ads (since we calculated AdCost separately above)
+                    // Note: c.mktTotal is the monthly budget in base scenario
+                    const baseAdCostPerUnit = (c.mktTotal / 1.07) / (d.targetBags || 1);
+                    const varCostNoAds = Math.max(0, varCostPerUnit - baseAdCostPerUnit); 
+                    
+                    const sEbitda = sRevExVat - (sUnits * varCostNoAds) - sAdCost - monthlyFixedCash;
+                    
+                    // Net Profit Pre-Tax (Monthly)
+                    const sEbitMonthly = sEbitda - monthlyDepreciation - monthlyFinance;
+                    
+                    // Annualize to calc tax accurately (Progressive Tax)
+                    const sEbitAnnual = sEbitMonthly * 12;
+                    const sTaxAnnual = calcTaxAnnual(sEbitAnnual);
+                    const sTaxMonthly = sTaxAnnual / 12;
+
+                    results.push(sEbitMonthly - sTaxMonthly);
+                }
+
+                results.sort((a, b) => a - b);
+                const p10 = results[Math.floor(iterations * 0.1)];
+                const p50 = results[Math.floor(iterations * 0.5)];
+                const p90 = results[Math.floor(iterations * 0.9)];
+
+                // Histogram Data
+                const bucketCount = 20;
+                const minVal = results[0];
+                const maxVal = results[results.length - 1];
+                const range = maxVal - minVal;
+                const step = range / bucketCount;
+                
+                const histogram = Array.from({length: bucketCount}, (_, i) => {
+                    const start = minVal + (i * step);
+                    const end = start + step;
+                    const count = results.filter(r => r >= start && r < end).length;
+                    return { range: `${(start/1000).toFixed(0)}k`, val: start, count };
+                });
+
+                return { p10, p50, p90, histogram, samples: results };
+
+            }, [c, d]);
 
             useEffect(() => { 
                 const financials = calculateFinancials(d);
@@ -2446,6 +2561,55 @@
                                     </table>
                                 </div>
                             </div>
+
+                            {/* --- NEW MODULE: Monte Carlo Simulation --- */}
+                            {monteCarloResults && (
+                            <div className="card mt-4 border-indigo-200 shadow-md">
+                                <div className="card-header bg-indigo-50">
+                                    <div className="card-title text-indigo-800">{t('mcTitle')}</div>
+                                    <div className="text-[10px] text-indigo-500 bg-white px-2 py-1 rounded border border-indigo-100">
+                                        Unit: {t('perMonth')} (Monthly Net Profit)
+                                    </div>
+                                </div>
+                                <div className="card-body p-3">
+                                    <div className="text-[10px] text-slate-500 mb-3">{t('mcDesc')}</div>
+                                    
+                                    <div className="grid grid-cols-3 gap-2 text-center mb-4">
+                                        <div className="p-2 bg-red-50 rounded border border-red-100">
+                                            <div className="text-[10px] text-red-500 font-bold">{t('mcP10')}</div>
+                                            <div className="text-sm font-bold text-red-700">{fmt(monteCarloResults.p10)}</div>
+                                        </div>
+                                        <div className="p-2 bg-blue-50 rounded border border-blue-100">
+                                            <div className="text-[10px] text-blue-500 font-bold">{t('mcP50')}</div>
+                                            <div className="text-sm font-bold text-blue-700">{fmt(monteCarloResults.p50)}</div>
+                                        </div>
+                                        <div className="p-2 bg-green-50 rounded border border-green-100">
+                                            <div className="text-[10px] text-green-500 font-bold">{t('mcP90')}</div>
+                                            <div className="text-sm font-bold text-green-700">{fmt(monteCarloResults.p90)}</div>
+                                        </div>
+                                    </div>
+
+                                    <div className="h-[200px]">
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <BarChart data={monteCarloResults.histogram}>
+                                                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                                                <XAxis dataKey="range" tick={{fontSize: 9}} angle={-45} textAnchor="end" height={50} />
+                                                <YAxis tick={{fontSize: 10}} hide />
+                                                <Tooltip 
+                                                    labelStyle={{color: '#475569'}}
+                                                    itemStyle={{color: '#4f46e5'}}
+                                                    formatter={(val) => [`${val} runs`, t('mcProb')]}
+                                                    labelFormatter={(l) => `Profit ~ ${l}`}
+                                                />
+                                                <Bar dataKey="count" fill="#6366f1" radius={[4, 4, 0, 0]} />
+                                                <ReferenceLine x={monteCarloResults.histogram.find(h => h.val >= monteCarloResults.p50)?.range} stroke="red" strokeDasharray="3 3" label={{ value: 'Median', fontSize: 9, position: 'top', fill: 'red' }} />
+                                            </BarChart>
+                                        </ResponsiveContainer>
+                                    </div>
+                                    <div className="text-center text-[10px] text-slate-400 mt-1">X-Axis: Net Profit (THB/Month) | Y-Axis: Probability</div>
+                                </div>
+                            </div>
+                            )}
 
                             {/* Marketing Funnel & Budget Allocation */}
                             <div className="card mt-4 border-indigo-200">
